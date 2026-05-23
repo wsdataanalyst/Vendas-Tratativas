@@ -1,0 +1,23 @@
+# Dados locais (nunca versionar informações sensíveis)
+data/
+*.db
+*.db-wal
+*.db-shm
+backups/
+
+# Ambiente
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Logs
+logs/
+*.log

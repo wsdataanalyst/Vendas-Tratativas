@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Vendas — Vendas & Tratativas{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <h1>Vendas</h1>
+    <p class="subtitle">Como <strong>Mayara Barros</strong> acompanha clientes e fecha negócios junto aos vendedores. Venda perdida = vincular ID da tratativa (o impacto vem de lá).</p>
+  </div>
+  <button type="button" class="btn btn-primary" data-open="modal-nova-venda">+ Nova venda</button>
+</header>
+
+{% if sem_conversao %}
+<section class="destaque-section" id="sem-conversao">
+  <div class="destaque-header">
+    <h2>Sem conversão — requer acompanhamento</h2>
+    <span class="count-badge danger">{{ sem_conversao|length }}</span>
+  </div>
+  <div class="cards-grid">
+    {% for v in sem_conversao %}
+    <article class="venda-card card perdida {% if not v.id_perda %}sem-vinculo{% endif %}">
+      <div class="card-head">
+        <span class="badge-id">Pedido {{ v.pedido }}</span>
+        <time>{{ v.data_registro[:16] }}</time>
+      </div>
+      <p class="venda-valor">{{ moeda(v.valor) }}</p>
+      {% if v.id_perda %}
+      <p class="card-obs">Tratativa #{{ v.id_perda }} — {{ v.tratativa_setor }}: {{ v.tratativa_situacao }}</p>
+      {% else %}
+      <p class="card-obs aviso">Vincule o ID da tratativa (origem do impacto)</p>
+      {% endif %}
+      <div class="card-foot">
+        <span class="status-pill warn">Não convertido</span>
+        <button type="button" class="btn btn-ghost btn-sm btn-edit-venda" data-item='{{ v | tojson }}'>Editar / vincular</button>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+<hr class="section-divider">
+{% endif %}
+
+<h2 class="section-label">Todas as vendas</h2>
+<section class="cards-grid vendas-grid">
+  {% for v in itens %}
+  <article class="venda-card card {% if v.convertido %}convertida{% else %}perdida{% endif %} {% if not v.convertido and not v.id_perda %}sem-vinculo{% endif %}">
+    <div class="card-head">
+      <span class="badge-id">Pedido {{ v.pedido }}</span>
+      <time datetime="{{ v.data_registro }}">{{ v.data_registro[:16] }}</time>
+    </div>
+    <p class="venda-valor">{{ moeda(v.valor) }}</p>
+    <div class="card-foot">
+      {% if v.convertido %}
+      <span class="status-pill ok">Convertido — fechado com vendedor</span>
+      {% else %}
+      <span class="status-pill warn">Não convertido</span>
+      {% if v.id_perda %}
+      <span class="badge-link">Tratativa #{{ v.id_perda }}</span>
+      {% else %}
+      <span class="badge-aviso">Sem vínculo</span>
+      {% endif %}
+      {% endif %}
+      <div class="card-actions">
+        <button type="button" class="btn btn-ghost btn-sm btn-edit-venda" data-item='{{ v | tojson }}'>Editar</button>
+        <form method="post" action="{{ url_for('venda_excluir', vid=v.id) }}" class="inline" onsubmit="return confirm('Excluir este registro?')">
+          <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
+        </form>
+      </div>
+    </div>
+    {% if v.tratativa_situacao and not v.convertido %}
+    <p class="card-obs">{{ v.tratativa_setor }} — {{ v.tratativa_situacao }}</p>
+    {% endif %}
+  </article>
+  {% else %}
+  <div class="empty-state card span-all">
+    <p>Nenhuma venda registrada.</p>
+    <button type="button" class="btn btn-primary" data-open="modal-nova-venda">Registrar primeira venda</button>
+  </div>
+  {% endfor %}
+</section>
+
+<dialog id="modal-nova-venda" class="modal">
+  <form method="post" action="{{ url_for('venda_nova') }}" class="form modal-form form-venda">
+    <h2>Nova venda</h2>
+    <p class="form-hint">Registre o acompanhamento do cliente e se o pedido foi convertido com o vendedor.</p>
+    <div class="form-grid">
+      <label>Pedido *
+        <input type="text" name="pedido" required placeholder="Nº do pedido">
+      </label>
+      <label>Valor (R$) *
+        <input type="number" name="valor" step="0.01" min="0" required placeholder="0,00">
+      </label>
+      <label class="checkbox-label span-2">
+        <input type="checkbox" name="convertido" class="chk-convertido">
+        Pedido convertido (fechado com o vendedor)
+      </label>
+      <label class="span-2 campo-id-perda">
+        ID da perda (tratativa) *
+        <select name="id_perda" class="sel-id-perda">
+          <option value="">— Selecione a tratativa —</option>
+          {% if tratativas_abertas %}
+          <optgroup label="Tratativas em aberto">
+            {% for t in tratativas_abertas %}
+            <option value="{{ t.id }}">#{{ t.id }} — {{ t.setor }} — {{ t.situacao[:45] }}</option>
+            {% endfor %}
+          </optgroup>
+          {% endif %}
+          <optgroup label="Todas as tratativas">
+            {% for t in tratativas %}
+            <option value="{{ t.id }}">#{{ t.id }} — {{ t.setor }} — {{ t.situacao[:45] }}</option>
+            {% endfor %}
+          </optgroup>
+        </select>
+        <span class="field-hint">Obrigatório quando o pedido não for convertido — o impacto vem da tratativa.</span>
+      </label>
+      <label class="span-2">Observação
+        <textarea name="observacao" rows="2" placeholder="Cliente, vendedor, contexto do acompanhamento"></textarea>
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" data-close>Cancelar</button>
+      <button type="submit" class="btn btn-primary">Salvar venda</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="modal-editar-venda" class="modal">
+  <form method="post" action="" class="form modal-form form-venda" id="form-editar-venda">
+    <h2>Editar venda</h2>
+    <div class="form-grid">
+      <label>Pedido *
+        <input type="text" name="pedido" id="edit-pedido" required>
+      </label>
+      <label>Valor (R$) *
+        <input type="number" name="valor" id="edit-valor" step="0.01" min="0" required>
+      </label>
+      <label class="checkbox-label span-2">
+        <input type="checkbox" name="convertido" id="edit-convertido" class="chk-convertido">
+        Pedido convertido
+      </label>
+      <label class="span-2 campo-id-perda">
+        ID da perda (tratativa) *
+        <select name="id_perda" id="edit-id-perda" class="sel-id-perda">
+          <option value="">— Selecione —</option>
+          {% if tratativas_abertas %}
+          <optgroup label="Em aberto">
+            {% for t in tratativas_abertas %}
+            <option value="{{ t.id }}">#{{ t.id }} — {{ t.setor }} — {{ t.situacao[:45] }}</option>
+            {% endfor %}
+          </optgroup>
+          {% endif %}
+          <optgroup label="Todas">
+            {% for t in tratativas %}
+            <option value="{{ t.id }}">#{{ t.id }} — {{ t.setor }} — {{ t.situacao[:45] }}</option>
+            {% endfor %}
+          </optgroup>
+        </select>
+      </label>
+      <label class="span-2">Observação
+        <textarea name="observacao" id="edit-obs-venda" rows="2"></textarea>
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" data-close>Cancelar</button>
+      <button type="submit" class="btn btn-primary">Atualizar</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll('.btn-edit-venda').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const v = JSON.parse(btn.dataset.item);
+      const form = document.getElementById('form-editar-venda');
+      form.action = `/vendas/${v.id}/editar`;
+      document.getElementById('edit-pedido').value = v.pedido;
+      document.getElementById('edit-valor').value = v.valor;
+      document.getElementById('edit-convertido').checked = !!v.convertido;
+      document.getElementById('edit-id-perda').value = v.id_perda || '';
+      document.getElementById('edit-obs-venda').value = v.observacao || '';
+      if (window.atualizarCampoPerda) window.atualizarCampoPerda(form);
+      document.getElementById('modal-editar-venda').showModal();
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: vendas-tratativas
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: APP_SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false

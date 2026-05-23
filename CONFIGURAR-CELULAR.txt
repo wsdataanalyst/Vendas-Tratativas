@@ -1,0 +1,20 @@
+ACESSO PELO CELULAR (quando IP local nao funciona)
+================================================
+
+1. Crie conta GRATIS em: https://ngrok.com
+2. Entre em: https://dashboard.ngrok.com/get-started/your-authtoken
+3. Copie o token (algo como: 2abc...xyz)
+4. Abra o arquivo .env nesta pasta e cole a linha:
+   NGROK_AUTHTOKEN=cole_seu_token_aqui
+5. De dois cliques em: iniciar-celular.bat
+6. Copie o link https://.... que aparecer no terminal
+7. Cole no navegador do celular (Chrome, Safari, etc.)
+
+Senhas:
+  Mayara Barros — mayara
+  Willame Sousa (Gestor) — 161217
+
+IMPORTANTE:
+- Mantenha o PC ligado e a janela aberta
+- O link muda cada vez que reiniciar o app
+- Nao compartilhe o link com outras pessoas

@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% block title %}Tratativas — Vendas & Tratativas{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <h1>Tratativas</h1>
+    <p class="subtitle">Problemas internos da empresa (logística, compras, TI, financeiro) — origem do impacto nas vendas perdidas</p>
+  </div>
+  <button type="button" class="btn btn-primary" data-open="modal-nova-tratativa">+ Nova tratativa</button>
+</header>
+
+{% if em_aberto and not filtro_status and not filtro_setor %}
+<section class="destaque-section" id="em-aberto">
+  <div class="destaque-header">
+    <h2>Em aberto — atenção imediata</h2>
+    <span class="count-badge warn">{{ em_aberto|length }}</span>
+  </div>
+  <div class="cards-grid">
+    {% for t in em_aberto %}
+    <article class="tratativa-card card card-aberto">
+      <div class="card-head">
+        <span class="badge-id">ID #{{ t.id }}</span>
+        <span class="badge-setor">{{ t.setor }}</span>
+        <time>{{ t.data_registro[:16] }}</time>
+      </div>
+      <h3 class="card-situacao">{{ t.situacao }}</h3>
+      <div class="card-foot">
+        <span class="status-pill">{{ t.status }}</span>
+        {% if t.impacto_reais %}<span class="impact">{{ moeda(t.impacto_reais) }}</span>{% endif %}
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+<hr class="section-divider">
+{% endif %}
+
+<form class="filters card" method="get">
+  <label>
+    Setor
+    <select name="setor" onchange="this.form.submit()">
+      <option value="">Todos</option>
+      {% for s in setores %}
+      <option value="{{ s }}" {% if filtro_setor == s %}selected{% endif %}>{{ s }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label>
+    Status
+    <select name="status" onchange="this.form.submit()">
+      <option value="">Todos</option>
+      {% for st in status_opts %}
+      <option value="{{ st }}" {% if filtro_status == st %}selected{% endif %}>{{ st }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  {% if filtro_setor or filtro_status %}
+  <a href="{{ url_for('tratativas_lista') }}" class="btn btn-ghost btn-sm">Limpar filtros</a>
+  {% endif %}
+</form>
+
+<section class="cards-grid">
+  {% for t in itens %}
+  <article class="tratativa-card card {% if t.id in ids_abertos %}card-aberto{% endif %}">
+    <div class="card-head">
+      <span class="badge-id">ID #{{ t.id }}</span>
+      <span class="badge-setor">{{ t.setor }}</span>
+      <time datetime="{{ t.data_registro }}">{{ t.data_registro[:16] }}</time>
+    </div>
+    <h3 class="card-situacao">{{ t.situacao }}</h3>
+    <dl class="card-details">
+      <div><dt>Tempo de solução</dt><dd>{{ t.tempo_solucao or '—' }}</dd></div>
+      <div><dt>Impacto R$</dt><dd class="impact">{{ moeda(t.impacto_reais) if t.impacto_reais else '—' }}</dd></div>
+    </dl>
+    <div class="card-foot">
+      <span class="status-pill">{{ t.status }}</span>
+      <div class="card-actions">
+        <button type="button" class="btn btn-ghost btn-sm btn-edit-tratativa" data-item='{{ t | tojson }}'>Editar</button>
+        <form method="post" action="{{ url_for('tratativa_excluir', tid=t.id) }}" class="inline" onsubmit="return confirm('Excluir tratativa #{{ t.id }}?')">
+          <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
+        </form>
+      </div>
+    </div>
+    {% if t.observacao %}
+    <p class="card-obs">{{ t.observacao }}</p>
+    {% endif %}
+  </article>
+  {% else %}
+  <div class="empty-state card span-all">
+    <p>Nenhuma tratativa encontrada.</p>
+    <button type="button" class="btn btn-primary" data-open="modal-nova-tratativa">Registrar primeira tratativa</button>
+  </div>
+  {% endfor %}
+</section>
+
+<dialog id="modal-nova-tratativa" class="modal">
+  <form method="post" action="{{ url_for('tratativa_nova') }}" class="form modal-form">
+    <h2>Nova tratativa</h2>
+    <p class="form-hint">Data e ID são gerados automaticamente no registro.</p>
+    <div class="form-grid">
+      <label>Setor *
+        <select name="setor" required>
+          <option value="">Selecione</option>
+          {% for s in setores %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Situação *
+        <select name="situacao" required>
+          <option value="">Selecione</option>
+          {% for s in situacoes %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Tempo de solução
+        <select name="tempo_solucao">
+          <option value="">—</option>
+          {% for t in tempos %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Impacto R$
+        <input type="number" name="impacto_reais" step="0.01" min="0" placeholder="0,00">
+      </label>
+      <label class="span-2">Status *
+        <select name="status" required>
+          <option value="">Selecione</option>
+          {% for st in status_opts %}<option value="{{ st }}">{{ st }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="span-2">Observação
+        <textarea name="observacao" rows="2" placeholder="Detalhes adicionais"></textarea>
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" data-close>Cancelar</button>
+      <button type="submit" class="btn btn-primary">Salvar tratativa</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="modal-editar-tratativa" class="modal">
+  <form method="post" action="" class="form modal-form" id="form-editar-tratativa">
+    <h2>Editar tratativa <span id="edit-id-label"></span></h2>
+    <div class="form-grid">
+      <label>Setor *
+        <select name="setor" id="edit-setor" required>
+          {% for s in setores %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Situação *
+        <select name="situacao" id="edit-situacao" required>
+          {% for s in situacoes %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Tempo de solução
+        <select name="tempo_solucao" id="edit-tempo">
+          <option value="">—</option>
+          {% for t in tempos %}<option value="{{ t }}">{{ t }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Impacto R$
+        <input type="number" name="impacto_reais" id="edit-impacto" step="0.01" min="0">
+      </label>
+      <label class="span-2">Status *
+        <select name="status" id="edit-status" required>
+          {% for st in status_opts %}<option value="{{ st }}">{{ st }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="span-2">Observação
+        <textarea name="observacao" id="edit-obs" rows="2"></textarea>
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" data-close>Cancelar</button>
+      <button type="submit" class="btn btn-primary">Atualizar</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll('.btn-edit-tratativa').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const t = JSON.parse(btn.dataset.item);
+      const form = document.getElementById('form-editar-tratativa');
+      form.action = `/tratativas/${t.id}/editar`;
+      document.getElementById('edit-id-label').textContent = `#${t.id}`;
+      document.getElementById('edit-setor').value = t.setor;
+      document.getElementById('edit-situacao').value = t.situacao;
+      document.getElementById('edit-tempo').value = t.tempo_solucao || '';
+      document.getElementById('edit-impacto').value = t.impacto_reais ?? '';
+      document.getElementById('edit-status').value = t.status;
+      document.getElementById('edit-obs').value = t.observacao || '';
+      document.getElementById('modal-editar-tratativa').showModal();
+    });
+  });
+</script>
+{% endblock %}

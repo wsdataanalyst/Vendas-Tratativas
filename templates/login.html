@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}Acesso — Vendas & Tratativas{% endblock %}
+{% block content %}
+<div class="login-wrap">
+  <div class="login-card card">
+    <div class="login-header">
+      <span class="nav-logo lg">VT</span>
+      <h1>Vendas & Tratativas</h1>
+      <p class="login-sub">Selecione seu nome para entrar</p>
+    </div>
+
+    <form method="post" class="form login-form" id="form-login">
+      <input type="hidden" name="usuario" id="usuario" value="gestor" required>
+
+      <p class="login-label">Quem está acessando? <span class="login-versao">clique no seu nome</span></p>
+      <div class="perfil-grid" role="group" aria-label="Perfil de acesso">
+        <button type="button" class="perfil-card" data-usuario="mayara">
+          <span class="perfil-avatar">MB</span>
+          <span class="perfil-nome">Mayara Barros</span>
+          <span class="perfil-cargo">Acompanhamento e vendas</span>
+        </button>
+        <button type="button" class="perfil-card active" data-usuario="gestor">
+          <span class="perfil-avatar gestor">WS</span>
+          <span class="perfil-nome">Willame Sousa</span>
+          <span class="perfil-cargo">Gestor — você</span>
+        </button>
+      </div>
+
+      <label for="senha">Senha</label>
+      <input type="password" id="senha" name="senha" required placeholder="Digite sua senha">
+      <button type="submit" class="btn btn-primary btn-block">Entrar</button>
+    </form>
+
+    {% if is_cloud %}
+    <p class="login-hint">Acesso na nuvem — salve este link no celular</p>
+    {% else %}
+    <p class="login-hint">Modo local. Para uso no celular sem PC: veja <strong>COMO-USAR-NA-NUVEM.md</strong></p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const inputUsuario = document.getElementById("usuario");
+  const cards = document.querySelectorAll(".perfil-card");
+
+  cards.forEach((card) => {
+    card.addEventListener("click", () => {
+      cards.forEach((c) => c.classList.remove("active"));
+      card.classList.add("active");
+      inputUsuario.value = card.dataset.usuario;
+      document.getElementById("senha").focus();
+    });
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Exportar — Vendas & Tratativas{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <h1>Exportar para Excel</h1>
+    <p class="subtitle">Baixe todas as tratativas e vendas registradas por <strong>Mayara Barros</strong> em uma planilha .xlsx</p>
+  </div>
+</header>
+
+<section class="export-grid">
+  <article class="card export-card">
+    <span class="export-icon">📊</span>
+    <h2>Planilha completa</h2>
+    <p class="section-desc">Arquivo com 3 abas: <strong>Resumo</strong>, <strong>Tratativas</strong> e <strong>Vendas</strong>, no mesmo formato do controle operacional.</p>
+    <ul class="export-list">
+      <li><strong>{{ total_tratativas }}</strong> tratativas</li>
+      <li><strong>{{ total_vendas }}</strong> vendas</li>
+      <li>Impacto total: {{ moeda(m_trat.impacto_total) }}</li>
+      <li>Taxa de conversão: {{ m_vendas.taxa_conversao }}%</li>
+    </ul>
+    <a href="{{ url_for('exportar_excel') }}" class="btn btn-primary btn-block export-btn">
+      Baixar Excel (.xlsx)
+    </a>
+  </article>
+
+  <article class="card">
+    <h2 class="card-title">Conteúdo das abas</h2>
+    <dl class="export-dl">
+      <dt>Tratativas</dt>
+      <dd>Data, ID, Setor, Situação, Tempo de solução, Impacto R$, Status, Observação</dd>
+      <dt>Vendas</dt>
+      <dd>Data, Pedido, Valor, Convertido, ID da perda, dados da tratativa vinculada</dd>
+      <dt>Resumo</dt>
+      <dd>Totais, conversão, impacto financeiro e indicadores do painel</dd>
+    </dl>
+    <p class="form-hint">O arquivo é gerado na hora com os dados atuais do banco local.</p>
+  </article>
+</section>
+{% endblock %}

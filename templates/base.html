@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Vendas & Tratativas{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+  {% if session.get('autenticado') %}
+  <nav class="nav">
+    <a href="{{ url_for('dashboard') }}" class="nav-brand">
+      <span class="nav-logo">VT</span>
+      <span>Vendas & Tratativas</span>
+    </a>
+    <div class="nav-links">
+      <a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">Painel</a>
+      <a href="{{ url_for('tratativas_lista') }}" class="{% if 'tratativa' in (request.endpoint or '') %}active{% endif %}">
+        Tratativas
+        {% if contagens.tratativas_abertas %}<span class="nav-badge warn">{{ contagens.tratativas_abertas }}</span>{% endif %}
+      </a>
+      <a href="{{ url_for('vendas_lista') }}" class="{% if 'venda' in (request.endpoint or '') %}active{% endif %}">
+        Vendas
+        {% if contagens.vendas_sem_conversao %}<span class="nav-badge danger">{{ contagens.vendas_sem_conversao }}</span>{% endif %}
+      </a>
+      <a href="{{ url_for('exportar') }}" class="{% if request.endpoint in ('exportar', 'exportar_excel') %}active{% endif %}">Exportar</a>
+    </div>
+    <div class="nav-actions">
+      {% if usuario %}
+      <span class="nav-user">
+        {{ usuario.nome }}
+        {% if usuario.is_gestor %}<span class="tag-gestor">Gestor</span>{% endif %}
+      </span>
+      {% endif %}
+      <form action="{{ url_for('backup') }}" method="post" class="inline">
+        <button type="submit" class="btn btn-ghost btn-sm">Backup</button>
+      </form>
+      <a href="{{ url_for('logout') }}" class="btn btn-ghost btn-sm">Sair</a>
+    </div>
+  </nav>
+  {% endif %}
+
+  <main class="main">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
