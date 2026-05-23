@@ -29,12 +29,14 @@ Depois de configurado **uma vez**, Mayara e Willame só abrem o link no celular 
 
 ### Opção A — Com GitHub (mais estável)
 
-1. Crie repositório no GitHub e envie esta pasta do projeto
-2. Acesse [render.com](https://render.com) → cadastro grátis
-3. **New** → **Blueprint** → conecte o GitHub e selecione o repositório
-4. Quando pedir `DATABASE_URL`, cole a URI do Supabase
-5. Deploy → aguarde alguns minutos
-6. Render mostra a URL: `https://vendas-tratativas-xxxx.onrender.com`
+1. Envie o código: dê dois cliques em **`enviar-github.bat`**
+   - Repositório: https://github.com/wsdataanalyst/Vendas-Tratativas
+2. Acesse [render.com](https://render.com) → **New** → **Blueprint**
+3. Repositório **Vendas-Tratativas** · branch **`main`** (não use `master` se estiver vazia)
+4. Blueprint path: `render.yaml`
+5. Em **Environment**, adicione `DATABASE_URL` com a URI do Supabase (obrigatório para dados permanentes)
+6. Deploy → aguarde alguns minutos (se falhar, abra **Logs** do serviço)
+7. URL do site: `https://vendas-tratativas-xxxx.onrender.com`
 
 ### Opção B — Sem GitHub
 

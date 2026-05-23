@@ -199,7 +199,10 @@ def _sqlite_schema():
 
 def init_db():
     if not USE_POSTGRES:
-        backup_database("pre_init")
+        try:
+            backup_database("pre_init")
+        except OSError:
+            pass
     with get_db() as conn:
         conn.executescript(_pg_schema() if USE_POSTGRES else _sqlite_schema())
         row = conn.execute(
