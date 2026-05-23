@@ -1,9 +1,34 @@
 import os
 from pathlib import Path
+from urllib.parse import quote_plus
 
 from dotenv import load_dotenv
 
 load_dotenv()
+
+
+def _montar_database_url() -> str:
+    """Monta URL do Postgres a partir de variáveis separadas (evita erro de senha na URL)."""
+    url = os.getenv("DATABASE_URL", "").strip()
+    if url:
+        if url.startswith("postgres://"):
+            url = url.replace("postgres://", "postgresql://", 1)
+        return url
+
+    senha = os.getenv("SUPABASE_DB_PASSWORD", "").strip()
+    projeto = os.getenv("SUPABASE_PROJECT_REF", "").strip()
+    host = os.getenv(
+        "SUPABASE_DB_HOST",
+        "aws-1-us-east-1.pooler.supabase.com",
+    ).strip()
+
+    if senha and projeto:
+        usuario = f"postgres.{projeto}"
+        senha_cod = quote_plus(senha)
+        return (
+            f"postgresql://{usuario}:{senha_cod}@{host}:6543/postgres"
+        )
+    return ""
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
@@ -14,7 +39,7 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
 SECRET_KEY = os.getenv("APP_SECRET_KEY", "dev-only-change-in-production")
-DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
+DATABASE_URL = _montar_database_url()
 # 0.0.0.0 = PC + celulares na mesma rede Wi-Fi; 127.0.0.1 = só neste computador
 HOST = os.getenv("APP_HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", os.getenv("APP_PORT", "5050")))

@@ -21,7 +21,29 @@ Depois de configurado **uma vez**, Mayara e Willame só abrem o link no celular 
 3. Menu **Project Settings** → **Database**
 4. Em **Connection string**, copie a URI **URI** (modo `Transaction` ou `Session`)
    - Exemplo: `postgresql://postgres.xxxx:SUASENHA@aws-0-sa-east-1.pooler.supabase.com:6543/postgres`
-5. Troque `[YOUR-PASSWORD]` pela senha que você criou
+5. Troque `[YOUR-PASSWORD]` pela senha real do projeto (a que você definiu ao criar o projeto)
+6. Senha com `@`, `#`, `%`? Use o botão **Copy** do Supabase (já codifica na URL)
+
+### Erro: `password authentication failed for user postgres`
+
+Use **uma** das opções no Render → **Environment**:
+
+#### Opção A — Mais fácil (recomendado)
+
+| Variável | Onde achar no Supabase |
+|----------|------------------------|
+| `SUPABASE_PROJECT_REF` | Settings → **General** → **Reference ID** |
+| `SUPABASE_DB_PASSWORD` | Senha do banco (Settings → Database → Reset se precisar) |
+| `SUPABASE_DB_HOST` | `aws-1-us-east-1.pooler.supabase.com` (já vem no render.yaml) |
+
+Apague ou deixe vazio `DATABASE_URL` se usar esta opção.
+
+#### Opção B — URI completa
+
+1. Supabase → **Database** → **Connection string** → **URI** → **Session pooler** → **Copy**
+2. Cole em `DATABASE_URL` no Render (use o botão Copy; não monte a senha na mão)
+
+Depois: **Save** → **Manual Deploy**
 
 ---
 
