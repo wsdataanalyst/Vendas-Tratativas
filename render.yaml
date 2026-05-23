@@ -14,7 +14,7 @@ services:
       - key: APP_SECRET_KEY
         generateValue: true
       - key: SUPABASE_MODE
-        value: direct
+        value: pooler
       - key: SUPABASE_PROJECT_REF
         sync: false
       - key: SUPABASE_DB_PASSWORD

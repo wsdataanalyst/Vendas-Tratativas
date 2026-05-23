@@ -20,9 +20,10 @@ def _montar_database_url() -> str:
     """Monta URL do Postgres a partir de variáveis separadas (evita erro de senha na URL)."""
     senha = os.getenv("SUPABASE_DB_PASSWORD", "").strip()
     projeto = os.getenv("SUPABASE_PROJECT_REF", "").strip()
-    modo = os.getenv("SUPABASE_MODE", "direct").strip().lower()
+    # Render nao alcanca conexao direct (5432/IPv6) — usar pooler
+    padrao_modo = "pooler" if os.getenv("RENDER") else "direct"
+    modo = os.getenv("SUPABASE_MODE", padrao_modo).strip().lower()
 
-    # No Render: nunca usar DATABASE_URL (quase sempre vem errada)
     url = (
         ""
         if os.getenv("RENDER")
