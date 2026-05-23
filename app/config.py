@@ -20,21 +20,38 @@ def _montar_database_url() -> str:
     """Monta URL do Postgres a partir de variáveis separadas (evita erro de senha na URL)."""
     senha = os.getenv("SUPABASE_DB_PASSWORD", "").strip()
     projeto = os.getenv("SUPABASE_PROJECT_REF", "").strip()
-    host = os.getenv(
-        "SUPABASE_DB_HOST",
-        "aws-1-us-east-1.pooler.supabase.com",
-    ).strip()
+    modo = os.getenv("SUPABASE_MODE", "direct").strip().lower()
 
-    # Prioridade: variáveis separadas (evita DATABASE_URL errada no Render)
+    # No Render: nunca usar DATABASE_URL (quase sempre vem errada)
+    url = (
+        ""
+        if os.getenv("RENDER")
+        else os.getenv("DATABASE_URL", "").strip()
+    )
+
     if senha and projeto:
-        usuario = f"postgres.{projeto}"
         senha_cod = quote_plus(senha)
+        if modo == "pooler":
+            host = os.getenv(
+                "SUPABASE_DB_HOST",
+                "aws-1-us-east-1.pooler.supabase.com",
+            ).strip()
+            usuario = f"postgres.{projeto}"
+            porta = 6543
+        else:
+            host = os.getenv(
+                "SUPABASE_DB_HOST",
+                f"db.{projeto}.supabase.co",
+            ).strip()
+            usuario = "postgres"
+            porta = 5432
         return (
-            f"postgresql://{usuario}:{senha_cod}@{host}:6543/postgres"
+            f"postgresql://{usuario}:{senha_cod}@{host}:{porta}/postgres"
             "?sslmode=require"
         )
 
-    url = os.getenv("DATABASE_URL", "").strip()
+    if url:
+        url = url.strip()
     if not url:
         return ""
     if url.startswith("postgres://"):

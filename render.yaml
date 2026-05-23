@@ -13,11 +13,9 @@ services:
         value: "true"
       - key: APP_SECRET_KEY
         generateValue: true
-      - key: DATABASE_URL
-        sync: false
+      - key: SUPABASE_MODE
+        value: direct
       - key: SUPABASE_PROJECT_REF
         sync: false
       - key: SUPABASE_DB_PASSWORD
         sync: false
-      - key: SUPABASE_DB_HOST
-        value: aws-1-us-east-1.pooler.supabase.com

@@ -28,15 +28,24 @@ Depois de configurado **uma vez**, Mayara e Willame só abrem o link no celular 
 
 Use **uma** das opções no Render → **Environment**:
 
-#### Opção A — Mais fácil (recomendado)
+#### Opção A — Conexão direct (recomendado, mais fácil)
 
-| Variável | Onde achar no Supabase |
-|----------|------------------------|
+| Variável | Valor |
+|----------|--------|
+| `SUPABASE_MODE` | `direct` |
 | `SUPABASE_PROJECT_REF` | Settings → **General** → **Reference ID** |
-| `SUPABASE_DB_PASSWORD` | Senha do banco (Settings → Database → Reset se precisar) |
-| `SUPABASE_DB_HOST` | `aws-1-us-east-1.pooler.supabase.com` (já vem no render.yaml) |
+| `SUPABASE_DB_PASSWORD` | Senha do banco (Database → **Reset database password** se não lembrar) |
 
-Apague ou deixe vazio `DATABASE_URL` se usar esta opção.
+**Apague** `DATABASE_URL` no Render.
+
+#### Opção B — Pooler (avançado)
+
+| Variável | Valor |
+|----------|--------|
+| `SUPABASE_MODE` | `pooler` |
+| `SUPABASE_PROJECT_REF` | Reference ID |
+| `SUPABASE_DB_PASSWORD` | Senha do banco |
+| `SUPABASE_DB_HOST` | ex. `aws-1-us-east-1.pooler.supabase.com` |
 
 #### Opção B — URI completa
 

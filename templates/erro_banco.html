@@ -9,18 +9,20 @@
 </head>
 <body>
 <div class="login-wrap">
-  <div class="login-card card" style="max-width: 520px; text-align: left;">
-    <h1 style="font-size: 1.2rem;">Banco de dados não conectou</h1>
-    <p class="section-desc">O site está no ar no Render, mas o Supabase precisa ser configurado.</p>
-    <pre class="export-list" style="font-size: 0.75rem; overflow: auto; white-space: pre-wrap;">{{ erro }}</pre>
-    <h2 class="card-title" style="margin-top: 1rem;">Render → Environment</h2>
-    <p class="section-desc"><strong>Apague</strong> a variável <code>DATABASE_URL</code> no Render (ela está com usuário <code>postgres</code> errado). Preencha só:</p>
-    <ul class="export-list">
-      <li><code>SUPABASE_PROJECT_REF</code> — Reference ID (Settings → General)</li>
-      <li><code>SUPABASE_DB_PASSWORD</code> — senha do banco</li>
-      <li><code>SUPABASE_DB_HOST</code> — aws-1-us-east-1.pooler.supabase.com</li>
-    </ul>
-    <p class="form-hint">Save → Manual Deploy → abra o site de novo</p>
+  <div class="login-card card" style="max-width: 540px; text-align: left;">
+    <h1 style="font-size: 1.2rem;">Configurar Supabase no Render</h1>
+    <p class="section-desc">O site está no ar. Falta só a senha correta do banco.</p>
+    <pre class="export-list" style="font-size: 0.72rem; overflow: auto; white-space: pre-wrap;">{{ erro }}</pre>
+
+    <h2 class="card-title" style="margin-top: 1rem;">Checklist no Render → Environment</h2>
+    <ol class="export-list" style="text-align: left; list-style: decimal; padding-left: 1.2rem;">
+      <li><strong>Apague</strong> <code>DATABASE_URL</code> (se existir)</li>
+      <li><code>SUPABASE_MODE</code> = <strong>direct</strong></li>
+      <li><code>SUPABASE_PROJECT_REF</code> = Reference ID (Supabase → Settings → General)</li>
+      <li><code>SUPABASE_DB_PASSWORD</code> = senha do banco (Database → Reset password se precisar)</li>
+      <li>Não precisa de <code>SUPABASE_DB_HOST</code> no modo direct</li>
+    </ol>
+    <p class="form-hint">Save → Manual Deploy → aguarde 2 min → abra o site de novo</p>
   </div>
 </div>
 </body>
