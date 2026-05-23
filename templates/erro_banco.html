@@ -14,7 +14,7 @@
     <p class="section-desc">O site está no ar no Render, mas o Supabase precisa ser configurado.</p>
     <pre class="export-list" style="font-size: 0.75rem; overflow: auto; white-space: pre-wrap;">{{ erro }}</pre>
     <h2 class="card-title" style="margin-top: 1rem;">Render → Environment</h2>
-    <p class="section-desc"><strong>Apague</strong> <code>DATABASE_URL</code> se estiver errada. Preencha:</p>
+    <p class="section-desc"><strong>Apague</strong> a variável <code>DATABASE_URL</code> no Render (ela está com usuário <code>postgres</code> errado). Preencha só:</p>
     <ul class="export-list">
       <li><code>SUPABASE_PROJECT_REF</code> — Reference ID (Settings → General)</li>
       <li><code>SUPABASE_DB_PASSWORD</code> — senha do banco</li>

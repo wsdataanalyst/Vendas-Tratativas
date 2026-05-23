@@ -7,16 +7,17 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def _url_pooler_invalida(url: str) -> bool:
+    """Pooler Supabase exige usuario postgres.PROJECT_REF, nao apenas postgres."""
+    if "pooler.supabase.com" not in url:
+        return False
+    if "postgres." in url.split("@")[0]:
+        return False
+    return "://postgres:" in url or "://postgres@" in url
+
+
 def _montar_database_url() -> str:
     """Monta URL do Postgres a partir de variáveis separadas (evita erro de senha na URL)."""
-    url = os.getenv("DATABASE_URL", "").strip()
-    if url:
-        if url.startswith("postgres://"):
-            url = url.replace("postgres://", "postgresql://", 1)
-        if "[YOUR-PASSWORD]" in url or "YOUR-PASSWORD" in url:
-            return ""
-        return _garantir_sslmode(url)
-
     senha = os.getenv("SUPABASE_DB_PASSWORD", "").strip()
     projeto = os.getenv("SUPABASE_PROJECT_REF", "").strip()
     host = os.getenv(
@@ -24,6 +25,7 @@ def _montar_database_url() -> str:
         "aws-1-us-east-1.pooler.supabase.com",
     ).strip()
 
+    # Prioridade: variáveis separadas (evita DATABASE_URL errada no Render)
     if senha and projeto:
         usuario = f"postgres.{projeto}"
         senha_cod = quote_plus(senha)
@@ -31,7 +33,17 @@ def _montar_database_url() -> str:
             f"postgresql://{usuario}:{senha_cod}@{host}:6543/postgres"
             "?sslmode=require"
         )
-    return ""
+
+    url = os.getenv("DATABASE_URL", "").strip()
+    if not url:
+        return ""
+    if url.startswith("postgres://"):
+        url = url.replace("postgres://", "postgresql://", 1)
+    if "[YOUR-PASSWORD]" in url or "YOUR-PASSWORD" in url:
+        return ""
+    if _url_pooler_invalida(url):
+        return ""
+    return _garantir_sslmode(url)
 
 
 def _garantir_sslmode(url: str) -> str:
