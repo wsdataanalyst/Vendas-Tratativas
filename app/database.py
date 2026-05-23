@@ -65,13 +65,19 @@ class DbConnection:
             import psycopg2.extras
 
             cur = self._raw.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-            is_insert = sql.strip().upper().startswith("INSERT")
-            if is_insert and "RETURNING" not in sql.upper():
+            sql_upper = sql.strip().upper()
+            is_insert = sql_upper.startswith("INSERT")
+            tem_id = "INTO TRATATIVAS" in sql_upper or "INTO VENDAS" in sql_upper
+            if is_insert and tem_id and "RETURNING" not in sql_upper:
                 sql = sql.rstrip().rstrip(";") + " RETURNING id"
             cur.execute(sql, tuple(params))
-            if is_insert:
+            if is_insert and "RETURNING" in sql.upper():
                 row = cur.fetchone()
-                return _CursorResult(cur.rowcount, row["id"] if row else None)
+                return _CursorResult(
+                    cur.rowcount, row["id"] if row and "id" in row else None
+                )
+            if is_insert:
+                return _CursorResult(cur.rowcount)
             if cur.description:
                 return _CursorResult(rows=[_Row(r) for r in cur.fetchall()])
             return _CursorResult(cur.rowcount)
