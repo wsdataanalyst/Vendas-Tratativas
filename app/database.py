@@ -103,7 +103,7 @@ def _connect():
         url = DATABASE_URL
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql://", 1)
-        return psycopg2.connect(url)
+        return psycopg2.connect(url, connect_timeout=15, sslmode="require")
     conn = sqlite3.connect(DB_PATH, timeout=30, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")

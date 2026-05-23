@@ -13,7 +13,9 @@ def _montar_database_url() -> str:
     if url:
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql://", 1)
-        return url
+        if "[YOUR-PASSWORD]" in url or "YOUR-PASSWORD" in url:
+            return ""
+        return _garantir_sslmode(url)
 
     senha = os.getenv("SUPABASE_DB_PASSWORD", "").strip()
     projeto = os.getenv("SUPABASE_PROJECT_REF", "").strip()
@@ -27,8 +29,15 @@ def _montar_database_url() -> str:
         senha_cod = quote_plus(senha)
         return (
             f"postgresql://{usuario}:{senha_cod}@{host}:6543/postgres"
+            "?sslmode=require"
         )
     return ""
+
+
+def _garantir_sslmode(url: str) -> str:
+    if "sslmode=" not in url:
+        url += "&sslmode=require" if "?" in url else "?sslmode=require"
+    return url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"

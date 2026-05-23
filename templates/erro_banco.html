@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configurar banco — Vendas & Tratativas</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+</head>
+<body>
+<div class="login-wrap">
+  <div class="login-card card" style="max-width: 520px; text-align: left;">
+    <h1 style="font-size: 1.2rem;">Banco de dados não conectou</h1>
+    <p class="section-desc">O site está no ar no Render, mas o Supabase precisa ser configurado.</p>
+    <pre class="export-list" style="font-size: 0.75rem; overflow: auto; white-space: pre-wrap;">{{ erro }}</pre>
+    <h2 class="card-title" style="margin-top: 1rem;">Render → Environment</h2>
+    <p class="section-desc"><strong>Apague</strong> <code>DATABASE_URL</code> se estiver errada. Preencha:</p>
+    <ul class="export-list">
+      <li><code>SUPABASE_PROJECT_REF</code> — Reference ID (Settings → General)</li>
+      <li><code>SUPABASE_DB_PASSWORD</code> — senha do banco</li>
+      <li><code>SUPABASE_DB_HOST</code> — aws-1-us-east-1.pooler.supabase.com</li>
+    </ul>
+    <p class="form-hint">Save → Manual Deploy → abra o site de novo</p>
+  </div>
+</div>
+</body>
+</html>

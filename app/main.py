@@ -27,7 +27,41 @@ def create_app() -> Flask:
         app.config["SESSION_COOKIE_SECURE"] = True
         app.config["SESSION_COOKIE_HTTPONLY"] = True
 
-    init_db()
+    app.config["DB_ERROR"] = None
+    _db_ok = {"ready": False}
+
+    def _ensure_db() -> bool:
+        if _db_ok["ready"]:
+            return True
+        if app.config["DB_ERROR"]:
+            return False
+        try:
+            init_db()
+            _db_ok["ready"] = True
+            return True
+        except Exception as exc:
+            app.config["DB_ERROR"] = str(exc)
+            import sys
+
+            print(f"[ERRO BANCO] {exc}", file=sys.stderr, flush=True)
+            return False
+
+    @app.before_request
+    def _require_db():
+        if request.endpoint in ("health", "static"):
+            return None
+        if request.endpoint and request.endpoint.startswith("static"):
+            return None
+        if not _ensure_db():
+            return (
+                render_template(
+                    "erro_banco.html",
+                    erro=app.config["DB_ERROR"],
+                    tem_url=bool(config.DATABASE_URL),
+                ),
+                503,
+            )
+        return None
 
     @app.context_processor
     def inject_globals():
@@ -60,7 +94,8 @@ def create_app() -> Flask:
 
     @app.route("/health")
     def health():
-        return jsonify({"status": "ok"})
+        db = "ok" if _ensure_db() else "erro"
+        return jsonify({"status": "ok", "database": db}), 200
 
     @app.route("/login", methods=["GET", "POST"])
     def login():

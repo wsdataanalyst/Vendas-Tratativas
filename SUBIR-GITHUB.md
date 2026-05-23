@@ -2,7 +2,18 @@
 
 O Git já está inicializado nesta pasta. Falta criar o repositório no GitHub e enviar o código.
 
-## Passo 1 — Criar repositório no GitHub
+## Forma mais rápida (automático)
+
+1. Instale o GitHub CLI (se não tiver): `winget install GitHub.cli`
+2. Dê dois cliques em **`criar-repo-github.bat`**
+3. Na primeira vez, faça login no navegador quando pedir
+4. Pronto — o script cria o repo **vendas-tratativas** (privado) e envia o código
+
+---
+
+## Forma manual
+
+### Passo 1 — Criar repositório no GitHub
 
 1. Acesse [github.com/new](https://github.com/new)
 2. Nome sugerido: `vendas-tratativas`
@@ -12,15 +23,17 @@ O Git já está inicializado nesta pasta. Falta criar o repositório no GitHub e
 
 ## Passo 2 — Conectar e enviar (no terminal desta pasta)
 
-Substitua `SEU_USUARIO` pelo seu usuário do GitHub:
+Seu usuário: **wsdataanalyst**
 
 ```powershell
 cd "c:\Users\wsana\Projeto python\Vendas & Tratativas"
 
-git remote add origin https://github.com/SEU_USUARIO/vendas-tratativas.git
+git remote add origin https://github.com/wsdataanalyst/vendas-tratativas.git
 
 git push -u origin main
 ```
+
+Repositório: https://github.com/wsdataanalyst/vendas-tratativas
 
 Se pedir login, use seu usuário GitHub e um **Personal Access Token** como senha (não use a senha da conta).
 
