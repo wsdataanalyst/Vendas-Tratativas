@@ -6,92 +6,79 @@
   <div class="welcome-text">
     <h1>{{ titulo_boas_vindas }}</h1>
     <p class="subtitle">{{ subtitulo_boas_vindas }}</p>
-    <p class="welcome-mayara sync-hint">Atualização automática entre usuários — horário de Brasília</p>
+    <p class="welcome-mayara sync-hint">Performance = follow-up direto · Tratativas = problemas internos e vendas convertidas via tratativa</p>
   </div>
   {% if usuario and usuario.is_gestor %}
   <span class="badge-gestor">Gestor</span>
   {% endif %}
   <div class="welcome-actions">
-    <a href="{{ url_for('negocios_lista') }}" class="btn btn-primary">+ Novo negócio</a>
-    <a href="{{ url_for('tratativas_lista') }}" class="btn btn-ghost">+ Nova tratativa</a>
+    <a href="{{ url_for('vendas_performance_lista') }}" class="btn btn-primary">+ Vendas Performance</a>
+    <a href="{{ url_for('tratativas_lista') }}" class="btn btn-ghost">+ Tratativa</a>
   </div>
 </section>
 
-{% if em_aberto or sem_conversao or negocios_acomp %}
 <section class="alertas-prioridade">
-  {% if negocios_acomp %}
-  <a href="{{ url_for('negocios_lista') }}" class="alerta-card card">
-    <span class="alerta-num">{{ negocios_acomp|length }}</span>
-    <span class="alerta-titulo">Negócios em acompanhamento</span>
-    <span class="alerta-desc">Oportunidades que podem virar venda</span>
+  {% if perf_andamento %}
+  <a href="{{ url_for('vendas_performance_lista') }}" class="alerta-card card">
+    <span class="alerta-num">{{ perf_andamento|length }}</span>
+    <span class="alerta-titulo">Performance em andamento</span>
+    <span class="alerta-desc">Follow-up direto — sem tratativa</span>
   </a>
   {% endif %}
   {% if em_aberto %}
-  <a href="{{ url_for('tratativas_lista') }}#em-aberto" class="alerta-card card alerta-warn">
+  <a href="{{ url_for('tratativas_lista') }}" class="alerta-card card alerta-warn">
     <span class="alerta-num">{{ em_aberto|length }}</span>
     <span class="alerta-titulo">Tratativas em aberto</span>
-    <span class="alerta-desc">Problemas internos sem resolução</span>
-  </a>
-  {% endif %}
-  {% if sem_conversao %}
-  <a href="{{ url_for('vendas_lista') }}#sem-conversao" class="alerta-card card alerta-danger">
-    <span class="alerta-num">{{ sem_conversao|length }}</span>
-    <span class="alerta-titulo">Vendas sem conversão</span>
-    <span class="alerta-desc">Pedidos perdidos — tratativa ou concorrência</span>
+    <span class="alerta-desc">Problemas internos pendentes</span>
   </a>
   {% endif %}
 </section>
-{% endif %}
 
-<section class="kpi-grid">
-  <article class="kpi-card card">
-    <span class="kpi-label">Negócios em acompanhamento</span>
-    <span class="kpi-value">{{ m_neg.em_acompanhamento }}</span>
-    <span class="kpi-meta">{{ moeda(m_neg.valor_total) }} em pipeline</span>
+<section class="kpi-grid kpi-grid-3">
+  <article class="kpi-card card kpi-performance">
+    <span class="kpi-label">Vendas Performance</span>
+    <span class="kpi-value">{{ m_perf.realizadas }}</span>
+    <span class="kpi-meta">realizadas · {{ m_perf.em_andamento }} em andamento</span>
+    <span class="kpi-sub">{{ moeda(m_perf.valor_realizado) }} convertido direto</span>
+  </article>
+  <article class="kpi-card card kpi-tratativa">
+    <span class="kpi-label">Vendas via tratativa</span>
+    <span class="kpi-value">{{ m_vtrat.total }}</span>
+    <span class="kpi-meta">{{ m_vtrat.sem_impacto }} sem impacto · {{ m_vtrat.com_impacto }} com impacto</span>
+    <span class="kpi-sub">{{ moeda(m_vtrat.valor_total) }} total</span>
   </article>
   <article class="kpi-card card accent-warn">
     <span class="kpi-label">Tratativas em aberto</span>
     <span class="kpi-value">{{ m_trat.em_andamento }}</span>
     <span class="kpi-meta">Impacto: {{ moeda(m_trat.impacto_total) }}</span>
   </article>
-  <article class="kpi-card card accent-ok">
-    <span class="kpi-label">Taxa conversão (negócios)</span>
-    <span class="kpi-value">{{ m_neg.taxa_conversao }}%</span>
-    <span class="kpi-meta">{{ m_neg.convertidos }}/{{ m_neg.total }} convertidos</span>
-  </article>
-  <article class="kpi-card card accent-danger">
-    <span class="kpi-label">Vendas sem conversão</span>
-    <span class="kpi-value">{{ m_vendas.sem_conversao }}</span>
-    <span class="kpi-meta">{{ moeda(m_vendas.valor_perdido) }} perdidos</span>
-  </article>
 </section>
 
 <section class="grid-2 section-prioridade">
   <div class="card card-prioridade">
     <div class="card-title-row">
-      <h2 class="card-title">Negócios em acompanhamento</h2>
-      <span class="count-badge">{{ negocios_acomp|length }}</span>
+      <h2 class="card-title">Performance — em andamento</h2>
+      <span class="count-badge">{{ perf_andamento|length }}</span>
     </div>
-    {% if negocios_acomp %}
+    {% if perf_andamento %}
     <div class="mini-cards">
-      {% for n in negocios_acomp[:6] %}
+      {% for v in perf_andamento[:6] %}
       <article class="mini-card">
         <div class="mini-card-top">
-          <span class="badge-id">{{ n.referencia }}</span>
-          <span class="impact">{{ moeda(n.valor) }}</span>
+          <span class="badge-id">{{ v.pedido }}</span>
+          <span class="impact">{{ moeda(v.valor) }}</span>
         </div>
-        <p class="mini-situacao">{{ n.cliente or '—' }}{% if n.vendedor %} · {{ n.vendedor }}{% endif %}</p>
-        <div class="mini-meta"><span>{{ formatar_data(n.data_registro) }}</span></div>
+        {% if v.previsao_data %}<p class="mini-vinculo">Previsão: {{ formatar_data(v.previsao_data, false) }}</p>{% endif %}
       </article>
       {% endfor %}
     </div>
-    <a href="{{ url_for('negocios_lista') }}" class="link-ver-todos">Ver todos</a>
+    <a href="{{ url_for('vendas_performance_lista') }}" class="link-ver-todos">Ver todas</a>
     {% else %}
-    <p class="empty ok-msg">Nenhum negócio em acompanhamento.</p>
+    <p class="empty ok-msg">Nenhuma venda em andamento no Performance.</p>
     {% endif %}
   </div>
 
-  <div class="card card-prioridade" id="em-aberto">
+  <div class="card card-prioridade">
     <div class="card-title-row">
       <h2 class="card-title">Tratativas em aberto</h2>
       <span class="count-badge warn">{{ em_aberto|length }}</span>
@@ -102,13 +89,9 @@
       <article class="mini-card mini-aberto">
         <div class="mini-card-top">
           <span class="badge-id">#{{ t.id }}</span>
-          <span class="badge-setor">{{ t.setor }}</span>
+          {% if t.numero_orcamento %}<span class="badge-link">{{ t.numero_orcamento }}</span>{% endif %}
         </div>
-        <p class="mini-situacao">{{ t.situacao }}</p>
-        <div class="mini-meta">
-          <span>{{ formatar_data(t.data_registro) }}</span>
-          {% if t.impacto_reais %}<span class="impact">{{ moeda(t.impacto_reais) }}</span>{% endif %}
-        </div>
+        <p class="mini-situacao">{{ t.situacao[:60] }}</p>
       </article>
       {% endfor %}
     </div>
@@ -121,30 +104,29 @@
 
 <section class="grid-2">
   <div class="card">
+    <h2 class="card-title">Comparativo de conversão</h2>
+    <ul class="resumo-list">
+      <li><span>Performance — taxa</span><strong>{{ m_perf.taxa_conversao }}%</strong></li>
+      <li><span>Performance — realizadas / total</span><strong>{{ m_perf.realizadas }} / {{ m_perf.total }}</strong></li>
+      <li><span>Via tratativa — sem impacto</span><strong class="ok-text">{{ m_vtrat.sem_impacto }} ({{ moeda(m_vtrat.valor_sem_impacto) }})</strong></li>
+      <li><span>Via tratativa — com impacto</span><strong class="warn-text">{{ m_vtrat.com_impacto }} ({{ moeda(m_vtrat.valor_com_impacto) }})</strong></li>
+      <li><span>Tratativas resolvidas</span><strong>{{ m_trat.resolvidas }}</strong></li>
+    </ul>
+  </div>
+  <div class="card">
     <h2 class="card-title">Tratativas por setor</h2>
     {% if m_trat.por_setor %}
     <ul class="setor-list">
-      {% for s in m_trat.por_setor %}
+      {% for s in m_trat.por_setor[:6] %}
       <li>
         <span class="setor-name">{{ s.setor }}</span>
-        <span class="setor-bar-wrap"><span class="setor-bar" style="width: {{ (s.qtd / m_trat.total * 100) if m_trat.total else 0 }}%"></span></span>
         <span class="setor-qtd">{{ s.qtd }}</span>
       </li>
       {% endfor %}
     </ul>
     {% else %}
-    <p class="empty">Nenhuma tratativa ainda.</p>
+    <p class="empty">Sem dados.</p>
     {% endif %}
-  </div>
-
-  <div class="card">
-    <h2 class="card-title">Resumo comercial</h2>
-    <ul class="resumo-list">
-      <li><span>Negócios convertidos</span><strong class="ok-text">{{ m_neg.convertidos }} ({{ moeda(m_neg.valor_convertido) }})</strong></li>
-      <li><span>Negócios perdidos</span><strong class="warn-text">{{ m_neg.perdidos }}</strong></li>
-      <li><span>Vendas convertidas</span><strong>{{ m_vendas.convertidas }} ({{ moeda(m_vendas.valor_convertido) }})</strong></li>
-      <li><span>Vendas sem conversão</span><strong class="warn-text">{{ m_vendas.sem_conversao }}</strong></li>
-    </ul>
   </div>
 </section>
 {% endblock %}

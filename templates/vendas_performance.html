@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block title %}Vendas Performance — Vendas & Tratativas{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <h1>Vendas Performance</h1>
+    <p class="subtitle">Acompanhamento direto de negócios — <strong>sem vínculo com tratativa</strong>. Base de follow-up da Mayara.</p>
+  </div>
+  <button type="button" class="btn btn-primary" data-open="modal-nova-perf">+ Registrar venda</button>
+</header>
+
+{% if em_andamento %}
+<section class="destaque-section">
+  <div class="destaque-header">
+    <h2>Em andamento</h2>
+    <span class="count-badge warn">{{ em_andamento|length }}</span>
+  </div>
+  <div class="cards-grid">
+    {% for v in em_andamento %}
+    <article class="venda-card card">
+      <div class="card-head">
+        <span class="badge-id">{{ v.pedido }}</span>
+        <time>{{ formatar_data(v.data_registro) }}</time>
+      </div>
+      <p class="venda-valor">{{ moeda(v.valor) }}</p>
+      {% if v.previsao_data %}<p class="card-obs">Previsão: {{ formatar_data(v.previsao_data, false) }}</p>{% endif %}
+      <div class="card-foot">
+        <span class="status-pill warn">{{ v.status_venda }}</span>
+        <button type="button" class="btn btn-ghost btn-sm btn-edit-perf" data-item='{{ v | tojson }}'>Editar</button>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+<hr class="section-divider">
+{% endif %}
+
+<h2 class="section-label">Todos os registros (Performance)</h2>
+<section class="cards-grid">
+  {% for v in itens %}
+  <article class="venda-card card {% if v.status_venda == 'Venda Realizada' %}convertida{% elif v.status_venda == 'Negócio perdido' %}perdida{% endif %}">
+    <div class="card-head">
+      <span class="badge-id">{{ v.pedido }}</span>
+      <span class="tag-tipo tag-performance">Performance</span>
+      <time>{{ formatar_data(v.data_registro) }}</time>
+    </div>
+    <p class="venda-valor">{{ moeda(v.valor) }}</p>
+    {% if v.cliente %}<p class="card-obs">{{ v.cliente }}{% if v.vendedor %} · {{ v.vendedor }}{% endif %}</p>{% endif %}
+    <div class="card-foot">
+      <span class="status-pill {% if v.status_venda == 'Venda Realizada' %}ok{% elif v.status_venda == 'Negócio perdido' %}warn{% endif %}">{{ v.status_venda }}</span>
+      <div class="card-actions">
+        <button type="button" class="btn btn-ghost btn-sm btn-edit-perf" data-item='{{ v | tojson }}'>Editar</button>
+        <form method="post" action="{{ url_for('venda_performance_excluir', vid=v.id) }}" class="inline" onsubmit="return confirm('Excluir?')">
+          <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
+        </form>
+      </div>
+    </div>
+    {% if v.status_venda == 'Negócio perdido' and v.concorrencia %}
+    <p class="card-obs">{{ v.concorrencia }}</p>
+    {% endif %}
+  </article>
+  {% else %}
+  <div class="empty-state card span-all">
+    <p>Nenhum registro de performance ainda.</p>
+    <button type="button" class="btn btn-primary" data-open="modal-nova-perf">Registrar primeira venda</button>
+  </div>
+  {% endfor %}
+</section>
+
+<dialog id="modal-nova-perf" class="modal">
+  <form method="post" action="{{ url_for('venda_performance_nova') }}" class="form modal-form form-performance">
+    <h2>Nova venda — Performance</h2>
+    <p class="form-hint">Registro de acompanhamento sem tratativa. Não confundir com venda originada de tratativa.</p>
+    <div class="form-grid">
+      <label>Pedido / referência *
+        <input type="text" name="pedido" required placeholder="Nº pedido ou cliente">
+      </label>
+      <label>Valor (R$) *
+        <input type="number" name="valor" step="0.01" min="0" required>
+      </label>
+      <label>Cliente
+        <input type="text" name="cliente">
+      </label>
+      <label>Vendedor
+        <input type="text" name="vendedor">
+      </label>
+      <label class="span-2">Status *
+        <select name="status_venda" class="sel-status-perf" required>
+          {% for s in status_opts %}
+          <option value="{{ s }}" {% if s == 'Em andamento' %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="span-2 campo-previsao" style="display:none">
+        Previsão (data) *
+        <input type="date" name="previsao_data" class="inp-previsao">
+      </label>
+      <div class="span-2 campos-perda-perf" style="display:none">
+        <p class="form-label">Motivo da perda</p>
+        <div class="motivo-perda-grid">
+          {% for val, label in motivos_perda if val != 'tratativa' %}
+          <label class="radio-card">
+            <input type="radio" name="motivo_perda" value="{{ val }}" {% if val == 'concorrencia' %}checked{% endif %}>
+            <span>{{ label }}</span>
+          </label>
+          {% endfor %}
+        </div>
+        <label class="campo-concorrencia-perf span-2" style="display:none">
+          Concorrência / motivo *
+          <input type="text" name="concorrencia" class="inp-concorrencia-perf">
+        </label>
+      </div>
+      <label class="span-2">Observação
+        <textarea name="observacao" rows="2"></textarea>
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" data-close>Cancelar</button>
+      <button type="submit" class="btn btn-primary">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="modal-editar-perf" class="modal">
+  <form method="post" action="" class="form modal-form form-performance" id="form-editar-perf">
+    <h2>Editar — Performance</h2>
+    <div class="form-grid">
+      <label>Pedido *<input type="text" name="pedido" id="edit-pedido-perf" required></label>
+      <label>Valor *<input type="number" name="valor" id="edit-valor-perf" step="0.01" min="0" required></label>
+      <label>Cliente<input type="text" name="cliente" id="edit-cliente-perf"></label>
+      <label>Vendedor<input type="text" name="vendedor" id="edit-vendedor-perf"></label>
+      <label class="span-2">Status *
+        <select name="status_venda" id="edit-status-perf" class="sel-status-perf" required>
+          {% for s in status_opts %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
+        </select>
+      </label>
+      <label class="span-2 campo-previsao" style="display:none">
+        Previsão (data) *
+        <input type="date" name="previsao_data" id="edit-previsao-perf" class="inp-previsao">
+      </label>
+      <div class="span-2 campos-perda-perf" style="display:none">
+        <div class="motivo-perda-grid">
+          {% for val, label in motivos_perda if val != 'tratativa' %}
+          <label class="radio-card">
+            <input type="radio" name="motivo_perda" value="{{ val }}">
+            <span>{{ label }}</span>
+          </label>
+          {% endfor %}
+        </div>
+        <label class="campo-concorrencia-perf span-2" style="display:none">
+          Concorrência *
+          <input type="text" name="concorrencia" id="edit-conc-perf" class="inp-concorrencia-perf">
+        </label>
+      </div>
+      <label class="span-2">Observação<textarea name="observacao" id="edit-obs-perf" rows="2"></textarea></label>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" data-close>Cancelar</button>
+      <button type="submit" class="btn btn-primary">Atualizar</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll('.btn-edit-perf').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const v = JSON.parse(btn.dataset.item);
+      document.getElementById('form-editar-perf').action = `/vendas-performance/${v.id}/editar`;
+      document.getElementById('edit-pedido-perf').value = v.pedido || '';
+      document.getElementById('edit-valor-perf').value = v.valor;
+      document.getElementById('edit-cliente-perf').value = v.cliente || '';
+      document.getElementById('edit-vendedor-perf').value = v.vendedor || '';
+      document.getElementById('edit-status-perf').value = v.status_venda || 'Em andamento';
+      document.getElementById('edit-previsao-perf').value = (v.previsao_data || '').slice(0, 10);
+      document.getElementById('edit-conc-perf').value = v.concorrencia || '';
+      document.getElementById('edit-obs-perf').value = v.observacao || '';
+      const form = document.getElementById('form-editar-perf');
+      if (window.atualizarFormPerformance) window.atualizarFormPerformance(form);
+      document.getElementById('modal-editar-perf').showModal();
+    });
+  });
+</script>
+{% endblock %}

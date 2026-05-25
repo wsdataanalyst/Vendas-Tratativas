@@ -69,6 +69,32 @@ function bindFormPerda(form) {
 
 document.querySelectorAll(".form-negocio, .form-venda").forEach(bindFormPerda);
 
+function atualizarFormPerformance(form) {
+  const sel = form.querySelector(".sel-status-perf");
+  const campoPrev = form.querySelector(".campo-previsao");
+  const inpPrev = form.querySelector(".inp-previsao");
+  const camposPerda = form.querySelector(".campos-perda-perf");
+  const campoConc = form.querySelector(".campo-concorrencia-perf");
+  const inpConc = form.querySelector(".inp-concorrencia-perf");
+  if (!sel) return;
+  const st = sel.value;
+  if (campoPrev) campoPrev.style.display = st === "Em andamento" ? "flex" : "none";
+  if (inpPrev) inpPrev.required = st === "Em andamento";
+  if (camposPerda) camposPerda.style.display = st === "Negócio perdido" ? "block" : "none";
+  if (campoConc) campoConc.style.display = st === "Negócio perdido" ? "flex" : "none";
+  if (inpConc) inpConc.required = st === "Negócio perdido";
+}
+
+window.atualizarFormPerformance = atualizarFormPerformance;
+
+document.querySelectorAll(".form-performance").forEach((form) => {
+  const sel = form.querySelector(".sel-status-perf");
+  if (sel) {
+    sel.addEventListener("change", () => atualizarFormPerformance(form));
+    atualizarFormPerformance(form);
+  }
+});
+
 const SITUACOES_CODIGO_ITEM = window.SITUACOES_CODIGO_ITEM || [
   "Falta de estoque produto indispensavel",
 ];
@@ -105,9 +131,8 @@ document.querySelectorAll(".form-tratativa").forEach(bindFormTratativa);
 function atualizarBadges(contagens) {
   if (!contagens) return;
   const map = [
-    { href: "/negocios", key: "negocios_acompanhamento", cls: "" },
+    { href: "/vendas-performance", key: "performance_em_andamento", cls: "" },
     { href: "/tratativas", key: "tratativas_abertas", cls: "warn" },
-    { href: "/vendas", key: "vendas_sem_conversao", cls: "danger" },
   ];
   map.forEach(({ href, key, cls }) => {
     const link = document.querySelector(`.nav-links a[href="${href}"]`);

@@ -16,13 +16,17 @@ from flask import (
 from app import auth, config
 from app.database import backup_database, export_json_snapshot, init_db
 from app.services import exportacao as svc_exportacao
-from app.services import negocios as svc_negocios
 from app.services import tratativas as svc_tratativas
-from app.services import vendas as svc_vendas
+from app.services import vendas_performance as svc_perf
+from app.services import vendas_tratativa as svc_vtrat
 from app.utils.cache import get as cache_get
 from app.utils.datetime_br import agora, formatar
 from app.utils.realtime import versao_atual
-from app.validators import validar_perda, validar_tratativa_situacao
+from app.validators import (
+    validar_tratativa_situacao,
+    validar_venda_performance,
+    validar_venda_tratativa,
+)
 
 
 def create_app() -> Flask:
@@ -56,13 +60,11 @@ def create_app() -> Flask:
     def _contagens():
         def factory():
             m_trat = svc_tratativas.metricas()
-            m_vend = svc_vendas.metricas()
-            m_neg = svc_negocios.metricas()
+            m_perf = svc_perf.metricas()
             return {
                 "tratativas_abertas": m_trat.get("em_andamento", 0),
-                "vendas_sem_conversao": m_vend.get("sem_conversao", 0),
-                "negocios_acompanhamento": m_neg.get("em_acompanhamento", 0),
-                "negocios_pendentes_vinculo": m_neg.get("perdidos_sem_vinculo", 0),
+                "performance_em_andamento": m_perf.get("em_andamento", 0),
+                "performance_perdidos": m_perf.get("perdidos", 0),
             }
 
         return cache_get("contagens", factory)
@@ -165,47 +167,104 @@ def create_app() -> Flask:
     @login_required
     def dashboard():
         m_trat = svc_tratativas.metricas()
-        m_vendas = svc_vendas.metricas()
-        m_neg = svc_negocios.metricas()
+        m_perf = svc_perf.metricas()
+        m_vtrat = svc_vtrat.metricas()
         em_aberto = svc_tratativas.listar_em_aberto()
-        sem_conversao = svc_vendas.listar_sem_conversao()
-        negocios_acomp = svc_negocios.listar_em_acompanhamento()
+        perf_andamento = svc_perf.listar_em_andamento()
         u = session.get("usuario", {})
         return render_template(
             "dashboard.html",
             m_trat=m_trat,
-            m_vendas=m_vendas,
-            m_neg=m_neg,
+            m_perf=m_perf,
+            m_vtrat=m_vtrat,
             em_aberto=em_aberto,
-            sem_conversao=sem_conversao,
-            negocios_acomp=negocios_acomp,
+            perf_andamento=perf_andamento,
             agora=agora(),
             titulo_boas_vindas=u.get("titulo_boas_vindas", "Bem-vinda, Mayara Barros!"),
             subtitulo_boas_vindas=u.get("subtitulo_boas_vindas", ""),
         )
 
-    @app.route("/tratativas")
+    # --- Vendas Performance ---
+    def _dados_performance_form() -> dict:
+        status = request.form.get("status_venda", "Em andamento")
+        motivo = request.form.get("motivo_perda") or None
+        if status != "Negócio perdido":
+            motivo = None
+        return {
+            "pedido": request.form["pedido"],
+            "valor": request.form["valor"],
+            "status_venda": status,
+            "previsao_data": request.form.get("previsao_data") or None,
+            "cliente": request.form.get("cliente") or None,
+            "vendedor": request.form.get("vendedor") or None,
+            "motivo_perda": motivo or "concorrencia",
+            "concorrencia": request.form.get("concorrencia") or None,
+            "observacao": request.form.get("observacao") or None,
+        }
+
+    @app.route("/vendas-performance")
     @login_required
-    def tratativas_lista():
+    def vendas_performance_lista():
         status = request.args.get("status") or None
-        setor = request.args.get("setor") or None
-        itens = svc_tratativas.listar(filtro_status=status, filtro_setor=setor)
-        em_aberto = svc_tratativas.listar_em_aberto()
-        ids_abertos = {t["id"] for t in em_aberto}
+        itens = svc_perf.listar(filtro_status=status)
+        em_andamento = svc_perf.listar_em_andamento()
         return render_template(
-            "tratativas.html",
+            "vendas_performance.html",
             itens=itens,
-            em_aberto=em_aberto,
-            ids_abertos=ids_abertos,
-            setores=config.SETORES,
-            situacoes=config.SITUACOES,
-            situacoes_codigo_item=config.SITUACOES_COM_CODIGO_ITEM,
-            tempos=config.TEMPOS_SOLUCAO,
-            status_opts=config.STATUS_TRATATIVA,
+            em_andamento=em_andamento,
+            status_opts=config.STATUS_VENDA_PERFORMANCE,
+            motivos_perda=config.MOTIVOS_PERDA,
             filtro_status=status,
-            filtro_setor=setor,
         )
 
+    @app.route("/vendas-performance/nova", methods=["POST"])
+    @login_required
+    def venda_performance_nova():
+        dados = _dados_performance_form()
+        ok, msg = validar_venda_performance(
+            dados["status_venda"],
+            dados.get("previsao_data"),
+            dados.get("motivo_perda"),
+            dados.get("concorrencia"),
+        )
+        if not ok:
+            flash(msg, "erro")
+            return redirect(url_for("vendas_performance_lista"))
+        svc_perf.criar(dados)
+        flash("Venda registrada no painel Performance.", "ok")
+        return redirect(url_for("vendas_performance_lista"))
+
+    @app.route("/vendas-performance/<int:vid>/editar", methods=["POST"])
+    @login_required
+    def venda_performance_editar(vid):
+        dados = _dados_performance_form()
+        ok, msg = validar_venda_performance(
+            dados["status_venda"],
+            dados.get("previsao_data"),
+            dados.get("motivo_perda"),
+            dados.get("concorrencia"),
+        )
+        if not ok:
+            flash(msg, "erro")
+            return redirect(url_for("vendas_performance_lista"))
+        svc_perf.atualizar(vid, dados)
+        flash("Registro atualizado.", "ok")
+        return redirect(url_for("vendas_performance_lista"))
+
+    @app.route("/vendas-performance/<int:vid>/excluir", methods=["POST"])
+    @login_required
+    def venda_performance_excluir(vid):
+        svc_perf.excluir(vid)
+        flash("Registro removido.", "ok")
+        return redirect(url_for("vendas_performance_lista"))
+
+    # Redirects legados
+    @app.route("/vendas")
+    @app.route("/negocios")
+    def redirect_antigos():
+        return redirect(url_for("vendas_performance_lista"))
+
+    # --- Tratativas ---
     def _dados_tratativa_form() -> dict:
         situacao = request.form["situacao"]
         codigo = (request.form.get("codigo_item") or "").strip() or None
@@ -219,8 +278,37 @@ def create_app() -> Flask:
             "impacto_reais": float(impacto) if impacto else None,
             "status": request.form["status"],
             "codigo_item": codigo,
+            "numero_orcamento": (request.form.get("numero_orcamento") or "").strip()
+            or None,
             "observacao": request.form.get("observacao") or None,
         }
+
+    @app.route("/tratativas")
+    @login_required
+    def tratativas_lista():
+        status = request.args.get("status") or None
+        setor = request.args.get("setor") or None
+        itens = svc_tratativas.listar(filtro_status=status, filtro_setor=setor)
+        em_aberto = svc_tratativas.listar_em_aberto()
+        resolvidas = svc_tratativas.listar(apenas_resolvidas=True)
+        vendas_trat = {v["id_tratativa"]: v for v in svc_vtrat.listar()}
+        ids_abertos = {t["id"] for t in em_aberto}
+        return render_template(
+            "tratativas.html",
+            itens=itens,
+            em_aberto=em_aberto,
+            resolvidas=resolvidas,
+            vendas_trat=vendas_trat,
+            ids_abertos=ids_abertos,
+            setores=config.SETORES,
+            situacoes=config.SITUACOES,
+            situacoes_codigo_item=config.SITUACOES_COM_CODIGO_ITEM,
+            tempos=config.TEMPOS_SOLUCAO,
+            status_opts=config.STATUS_TRATATIVA,
+            status_resolvidos=config.STATUS_TRATATIVA_RESOLVIDA,
+            filtro_status=status,
+            filtro_setor=setor,
+        )
 
     @app.route("/tratativas/nova", methods=["POST"])
     @login_required
@@ -253,169 +341,41 @@ def create_app() -> Flask:
         flash("Tratativa removida.", "ok")
         return redirect(url_for("tratativas_lista"))
 
-    def _dados_venda_form():
-        convertido = request.form.get("convertido") == "on"
-        motivo = request.form.get("motivo_perda") or None
-        if convertido:
-            motivo = None
-        elif not motivo:
-            motivo = "tratativa"
-        return {
-            "pedido": request.form["pedido"],
-            "valor": request.form["valor"],
-            "convertido": convertido,
-            "motivo_perda": motivo,
-            "id_perda": int(request.form["id_perda"])
-            if request.form.get("id_perda")
-            else None,
-            "concorrencia": request.form.get("concorrencia") or None,
-            "observacao": request.form.get("observacao") or None,
-        }
-
-    def _validar_venda_form(dados: dict) -> bool:
-        ok, msg = validar_perda(
-            convertido=dados["convertido"],
-            motivo_perda=dados.get("motivo_perda"),
-            id_tratativa=dados.get("id_perda"),
-            concorrencia=dados.get("concorrencia"),
-        )
+    @app.route("/tratativas/<int:tid>/venda", methods=["POST"])
+    @login_required
+    def tratativa_registrar_venda(tid):
+        trat = svc_tratativas.obter(tid)
+        if not trat:
+            flash("Tratativa não encontrada.", "erro")
+            return redirect(url_for("tratativas_lista"))
+        ok, msg = validar_venda_tratativa(tid, trat["status"])
         if not ok:
             flash(msg, "erro")
-        return ok
-
-    @app.route("/vendas")
-    @login_required
-    def vendas_lista():
-        itens = svc_vendas.listar()
-        sem_conversao = svc_vendas.listar_sem_conversao()
-        tratativas = svc_tratativas.listar()
-        em_aberto = svc_tratativas.listar_em_aberto()
-        return render_template(
-            "vendas.html",
-            itens=itens,
-            sem_conversao=sem_conversao,
-            tratativas=tratativas,
-            tratativas_abertas=em_aberto,
-            motivos_perda=config.MOTIVOS_PERDA,
+            return redirect(url_for("tratativas_lista"))
+        pedido = request.form.get("pedido") or trat.get("numero_orcamento") or f"TRAT-{tid}"
+        svc_vtrat.criar(
+            {
+                "id_tratativa": tid,
+                "pedido": pedido,
+                "valor": request.form["valor"],
+                "observacao": request.form.get("observacao"),
+            },
+            trat["status"],
         )
-
-    @app.route("/vendas/nova", methods=["POST"])
-    @login_required
-    def venda_nova():
-        dados = _dados_venda_form()
-        if not _validar_venda_form(dados):
-            return redirect(url_for("vendas_lista"))
-        svc_vendas.criar(dados)
-        flash("Venda registrada.", "ok")
-        return redirect(url_for("vendas_lista"))
-
-    @app.route("/vendas/<int:vid>/editar", methods=["POST"])
-    @login_required
-    def venda_editar(vid):
-        dados = _dados_venda_form()
-        if not _validar_venda_form(dados):
-            return redirect(url_for("vendas_lista"))
-        svc_vendas.atualizar(vid, dados)
-        flash("Venda atualizada.", "ok")
-        return redirect(url_for("vendas_lista"))
-
-    @app.route("/vendas/<int:vid>/excluir", methods=["POST"])
-    @login_required
-    def venda_excluir(vid):
-        svc_vendas.excluir(vid)
-        flash("Venda removida.", "ok")
-        return redirect(url_for("vendas_lista"))
-
-    def _dados_negocio_form():
-        status = request.form.get("status", "Em acompanhamento")
-        motivo = request.form.get("motivo_perda") or None
-        if status != "Perdido":
-            motivo = None
-        return {
-            "referencia": request.form["referencia"],
-            "cliente": request.form.get("cliente") or None,
-            "vendedor": request.form.get("vendedor") or None,
-            "valor": request.form["valor"],
-            "status": status,
-            "motivo_perda": motivo,
-            "id_tratativa": int(request.form["id_tratativa"])
-            if request.form.get("id_tratativa")
-            else None,
-            "concorrencia": request.form.get("concorrencia") or None,
-            "observacao": request.form.get("observacao") or None,
-        }
-
-    def _validar_negocio_form(dados: dict) -> bool:
-        ok, msg = validar_perda(
-            status=dados["status"],
-            motivo_perda=dados.get("motivo_perda"),
-            id_tratativa=dados.get("id_tratativa"),
-            concorrencia=dados.get("concorrencia"),
-        )
-        if not ok:
-            flash(msg, "erro")
-        return ok
-
-    @app.route("/negocios")
-    @login_required
-    def negocios_lista():
-        status = request.args.get("status") or None
-        itens = svc_negocios.listar(filtro_status=status)
-        em_acompanhamento = svc_negocios.listar_em_acompanhamento()
-        tratativas = svc_tratativas.listar()
-        em_aberto = svc_tratativas.listar_em_aberto()
-        return render_template(
-            "negocios.html",
-            itens=itens,
-            em_acompanhamento=em_acompanhamento,
-            tratativas=tratativas,
-            tratativas_abertas=em_aberto,
-            status_opts=config.STATUS_NEGOCIO,
-            motivos_perda=config.MOTIVOS_PERDA,
-            filtro_status=status,
-        )
-
-    @app.route("/negocios/nova", methods=["POST"])
-    @login_required
-    def negocio_nova():
-        dados = _dados_negocio_form()
-        if not _validar_negocio_form(dados):
-            return redirect(url_for("negocios_lista"))
-        svc_negocios.criar(dados)
-        flash("Negócio registrado.", "ok")
-        return redirect(url_for("negocios_lista"))
-
-    @app.route("/negocios/<int:nid>/editar", methods=["POST"])
-    @login_required
-    def negocio_editar(nid):
-        dados = _dados_negocio_form()
-        if not _validar_negocio_form(dados):
-            return redirect(url_for("negocios_lista"))
-        svc_negocios.atualizar(nid, dados)
-        flash("Negócio atualizado.", "ok")
-        return redirect(url_for("negocios_lista"))
-
-    @app.route("/negocios/<int:nid>/excluir", methods=["POST"])
-    @login_required
-    def negocio_excluir(nid):
-        svc_negocios.excluir(nid)
-        flash("Negócio removido.", "ok")
-        return redirect(url_for("negocios_lista"))
+        flash("Venda da tratativa registrada (convertida).", "ok")
+        return redirect(url_for("tratativas_lista"))
 
     @app.route("/exportar")
     @login_required
     def exportar():
         m_trat = svc_tratativas.metricas()
-        m_vendas = svc_vendas.metricas()
-        m_neg = svc_negocios.metricas()
+        m_perf = svc_perf.metricas()
+        m_vtrat = svc_vtrat.metricas()
         return render_template(
             "exportar.html",
             m_trat=m_trat,
-            m_vendas=m_vendas,
-            m_neg=m_neg,
-            total_tratativas=m_trat["total"],
-            total_vendas=m_vendas["total"],
-            total_negocios=m_neg["total"],
+            m_perf=m_perf,
+            m_vtrat=m_vtrat,
         )
 
     @app.route("/exportar/excel")
@@ -446,8 +406,8 @@ def create_app() -> Flask:
         return jsonify(
             {
                 "tratativas": svc_tratativas.metricas(),
-                "vendas": svc_vendas.metricas(),
-                "negocios": svc_negocios.metricas(),
+                "performance": svc_perf.metricas(),
+                "vendas_tratativa": svc_vtrat.metricas(),
             }
         )
 

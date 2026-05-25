@@ -8,7 +8,7 @@ from pathlib import Path
 from app.config import BACKUP_DIR, DB_PATH, DATABASE_URL
 from app.utils.datetime_br import agora_iso
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 USE_POSTGRES = bool(DATABASE_URL)
 
 
@@ -150,6 +150,7 @@ def _pg_schema():
         impacto_reais DOUBLE PRECISION,
         status TEXT NOT NULL,
         codigo_item TEXT,
+        numero_orcamento TEXT,
         observacao TEXT,
         criado_em TEXT NOT NULL,
         atualizado_em TEXT NOT NULL
@@ -157,11 +158,18 @@ def _pg_schema():
     CREATE TABLE IF NOT EXISTS vendas (
         id SERIAL PRIMARY KEY,
         data_registro TEXT NOT NULL,
+        tipo TEXT NOT NULL DEFAULT 'performance',
         pedido TEXT NOT NULL,
         valor DOUBLE PRECISION NOT NULL,
+        status_venda TEXT,
+        previsao_data TEXT,
+        cliente TEXT,
+        vendedor TEXT,
         convertido INTEGER NOT NULL DEFAULT 0,
         motivo_perda TEXT,
         id_perda INTEGER REFERENCES tratativas(id),
+        id_tratativa INTEGER REFERENCES tratativas(id),
+        resultado_tratativa TEXT,
         concorrencia TEXT,
         observacao TEXT,
         criado_em TEXT NOT NULL,
@@ -204,6 +212,7 @@ def _sqlite_schema():
         impacto_reais REAL,
         status TEXT NOT NULL,
         codigo_item TEXT,
+        numero_orcamento TEXT,
         observacao TEXT,
         criado_em TEXT NOT NULL,
         atualizado_em TEXT NOT NULL
@@ -211,16 +220,24 @@ def _sqlite_schema():
     CREATE TABLE IF NOT EXISTS vendas (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         data_registro TEXT NOT NULL,
+        tipo TEXT NOT NULL DEFAULT 'performance',
         pedido TEXT NOT NULL,
         valor REAL NOT NULL,
+        status_venda TEXT,
+        previsao_data TEXT,
+        cliente TEXT,
+        vendedor TEXT,
         convertido INTEGER NOT NULL DEFAULT 0,
         motivo_perda TEXT,
         id_perda INTEGER,
+        id_tratativa INTEGER,
+        resultado_tratativa TEXT,
         concorrencia TEXT,
         observacao TEXT,
         criado_em TEXT NOT NULL,
         atualizado_em TEXT NOT NULL,
-        FOREIGN KEY (id_perda) REFERENCES tratativas(id)
+        FOREIGN KEY (id_perda) REFERENCES tratativas(id),
+        FOREIGN KEY (id_tratativa) REFERENCES tratativas(id)
     );
     CREATE TABLE IF NOT EXISTS negocios (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -333,6 +350,99 @@ def _migrate_v3(conn):
         conn.execute("ALTER TABLE tratativas ADD COLUMN codigo_item TEXT")
 
 
+def _migrate_v4(conn):
+    if not _coluna_existe(conn, "tratativas", "numero_orcamento"):
+        conn.execute("ALTER TABLE tratativas ADD COLUMN numero_orcamento TEXT")
+
+    cols_vendas = [
+        ("tipo", "TEXT"),
+        ("status_venda", "TEXT"),
+        ("previsao_data", "TEXT"),
+        ("cliente", "TEXT"),
+        ("vendedor", "TEXT"),
+        ("id_tratativa", "INTEGER"),
+        ("resultado_tratativa", "TEXT"),
+    ]
+    for col, tipo in cols_vendas:
+        if not _coluna_existe(conn, "vendas", col):
+            conn.execute(f"ALTER TABLE vendas ADD COLUMN {col} {tipo}")
+
+    conn.execute(
+        """
+        UPDATE vendas SET tipo = 'tratativa', id_tratativa = id_perda
+        WHERE id_perda IS NOT NULL AND (tipo IS NULL OR tipo = 'performance')
+        """
+    )
+    conn.execute(
+        """
+        UPDATE vendas SET tipo = 'performance'
+        WHERE id_perda IS NULL AND (tipo IS NULL OR tipo = '')
+        """
+    )
+    conn.execute(
+        """
+        UPDATE vendas SET status_venda = 'Venda Realizada'
+        WHERE tipo = 'performance' AND status_venda IS NULL AND convertido = 1
+        """
+    )
+    conn.execute(
+        """
+        UPDATE vendas SET status_venda = 'Negócio perdido'
+        WHERE tipo = 'performance' AND status_venda IS NULL AND convertido = 0
+        """
+    )
+    conn.execute(
+        """
+        UPDATE vendas SET resultado_tratativa = 'com_impacto'
+        WHERE tipo = 'tratativa' AND resultado_tratativa IS NULL
+        AND id_tratativa IN (
+            SELECT id FROM tratativas WHERE status = 'Resolvido com impacto'
+        )
+        """
+    )
+    conn.execute(
+        """
+        UPDATE vendas SET resultado_tratativa = 'sem_impacto'
+        WHERE tipo = 'tratativa' AND resultado_tratativa IS NULL
+        AND id_tratativa IS NOT NULL
+        """
+    )
+
+    if _tabela_existe(conn, "negocios"):
+        rows = conn.execute("SELECT * FROM negocios").fetchall()
+        mapa_status = {
+            "Em acompanhamento": "Em andamento",
+            "Convertido": "Venda Realizada",
+            "Perdido": "Negócio perdido",
+        }
+        for n in rows:
+            st = mapa_status.get(n["status"], "Em andamento")
+            conn.execute(
+                """
+                INSERT INTO vendas (
+                    data_registro, tipo, pedido, valor, status_venda, cliente, vendedor,
+                    motivo_perda, id_tratativa, concorrencia, observacao,
+                    convertido, criado_em, atualizado_em
+                ) VALUES (?, 'performance', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    n["data_registro"],
+                    n["referencia"],
+                    n["valor"],
+                    st,
+                    n.get("cliente"),
+                    n.get("vendedor"),
+                    n.get("motivo_perda"),
+                    n.get("id_tratativa"),
+                    n.get("concorrencia"),
+                    n.get("observacao"),
+                    1 if st == "Venda Realizada" else 0,
+                    n["criado_em"],
+                    n["atualizado_em"],
+                ),
+            )
+
+
 def _aplicar_migracoes(conn, version: int) -> int:
     if version < 2:
         _migrate_v2(conn)
@@ -340,6 +450,9 @@ def _aplicar_migracoes(conn, version: int) -> int:
     if version < 3:
         _migrate_v3(conn)
         version = 3
+    if version < 4:
+        _migrate_v4(conn)
+        version = 4
     return version
 
 

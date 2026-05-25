@@ -549,6 +549,21 @@ body {
 .empty, .empty-state { color: var(--muted); text-align: center; padding: 2rem; }
 .empty-state .btn { margin-top: 1rem; }
 
+.tag-tipo {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  background: rgba(59, 130, 246, 0.2);
+  color: var(--primary);
+}
+.tag-performance { background: rgba(34, 197, 94, 0.15); color: var(--ok); }
+.tag-tratativa-venda { color: var(--warn); font-size: 0.85rem; }
+.kpi-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.kpi-sub { display: block; font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
+@media (max-width: 900px) {
+  .kpi-grid-3 { grid-template-columns: 1fr; }
+}
+
 .card-codigo-item {
   font-size: 0.85rem;
   color: var(--muted);

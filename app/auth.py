@@ -10,8 +10,8 @@ USUARIOS = {
         "senha_padrao": "mayara",
         "titulo_boas_vindas": "Bem-vinda, Mayara Barros!",
         "subtitulo_boas_vindas": (
-            "Registre negócios em acompanhamento, tratativas e fechamentos "
-            "junto aos vendedores."
+            "Vendas Performance para follow-up direto; tratativas para problemas "
+            "internos e vendas convertidas via tratativa."
         ),
     },
     "gestor": {

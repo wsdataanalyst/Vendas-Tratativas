@@ -12,7 +12,11 @@ def listar_em_aberto():
     return [dict(r) for r in rows]
 
 
-def listar(filtro_status: str | None = None, filtro_setor: str | None = None):
+def listar(
+    filtro_status: str | None = None,
+    filtro_setor: str | None = None,
+    apenas_resolvidas: bool = False,
+):
     sql = "SELECT * FROM tratativas WHERE 1=1"
     params: list = []
     if filtro_status:
@@ -21,6 +25,12 @@ def listar(filtro_status: str | None = None, filtro_setor: str | None = None):
     if filtro_setor:
         sql += " AND setor = ?"
         params.append(filtro_setor)
+    if apenas_resolvidas:
+        from app.config import STATUS_TRATATIVA_RESOLVIDA
+
+        ph = ",".join("?" * len(STATUS_TRATATIVA_RESOLVIDA))
+        sql += f" AND status IN ({ph})"
+        params.extend(STATUS_TRATATIVA_RESOLVIDA)
     sql += " ORDER BY id DESC"
     with get_db() as conn:
         rows = conn.execute(sql, params).fetchall()
@@ -42,8 +52,9 @@ def criar(dados: dict) -> int:
             """
             INSERT INTO tratativas (
                 data_registro, setor, situacao, tempo_solucao,
-                impacto_reais, status, codigo_item, observacao, criado_em, atualizado_em
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                impacto_reais, status, codigo_item, numero_orcamento,
+                observacao, criado_em, atualizado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 dados.get("data_registro") or agora,
@@ -53,6 +64,7 @@ def criar(dados: dict) -> int:
                 dados.get("impacto_reais"),
                 dados["status"],
                 dados.get("codigo_item"),
+                dados.get("numero_orcamento"),
                 dados.get("observacao"),
                 agora,
                 agora,
@@ -70,8 +82,8 @@ def atualizar(tratativa_id: int, dados: dict) -> bool:
             """
             UPDATE tratativas SET
                 setor = ?, situacao = ?, tempo_solucao = ?,
-                impacto_reais = ?, status = ?, codigo_item = ?, observacao = ?,
-                atualizado_em = ?
+                impacto_reais = ?, status = ?, codigo_item = ?,
+                numero_orcamento = ?, observacao = ?, atualizado_em = ?
             WHERE id = ?
             """,
             (
@@ -81,6 +93,7 @@ def atualizar(tratativa_id: int, dados: dict) -> bool:
                 dados.get("impacto_reais"),
                 dados["status"],
                 dados.get("codigo_item"),
+                dados.get("numero_orcamento"),
                 dados.get("observacao"),
                 agora,
                 tratativa_id,
@@ -128,9 +141,16 @@ def metricas():
             FROM tratativas GROUP BY setor ORDER BY qtd DESC
             """
         ).fetchall()
+        resolvidas = conn.execute(
+            """
+            SELECT COUNT(*) FROM tratativas
+            WHERE status IN ('Resolvido com impacto', 'Resolvido sem impacto')
+            """
+        ).fetchone()[0]
     return {
         "total": total,
         "em_andamento": em_andamento,
+        "resolvidas": resolvidas,
         "impacto_total": float(impacto_total or 0),
         "por_setor": [dict(r) for r in por_setor],
     }

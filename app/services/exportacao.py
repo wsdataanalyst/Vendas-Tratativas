@@ -6,9 +6,9 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
-from app.services import negocios as svc_negocios
 from app.services import tratativas as svc_tratativas
-from app.services import vendas as svc_vendas
+from app.services import vendas_performance as svc_perf
+from app.services import vendas_tratativa as svc_vtrat
 from app.utils.datetime_br import agora_iso
 
 
@@ -29,66 +29,92 @@ def _ajustar_larguras(ws, larguras: list[int]):
 
 def gerar_excel() -> tuple[BytesIO, str]:
     tratativas = svc_tratativas.listar()
-    vendas = svc_vendas.listar()
-    negocios = svc_negocios.listar()
+    perf = svc_perf.listar()
+    vtrat = svc_vtrat.listar()
     m_trat = svc_tratativas.metricas()
-    m_vendas = svc_vendas.metricas()
-    m_neg = svc_negocios.metricas()
+    m_perf = svc_perf.metricas()
+    m_vtrat = svc_vtrat.metricas()
 
     wb = Workbook()
 
-    ws_neg = wb.active
-    ws_neg.title = "Negocios"
-    cab_neg = [
+    ws_perf = wb.active
+    ws_perf.title = "Vendas Performance"
+    cab_perf = [
         "Data",
-        "ID",
-        "Referência",
+        "Pedido",
         "Cliente",
         "Vendedor",
         "Valor (R$)",
         "Status",
-        "Motivo perda",
-        "ID Tratativa",
+        "Previsão",
         "Concorrência",
         "Observação",
-        "Criado em",
-        "Atualizado em",
     ]
-    ws_neg.append(cab_neg)
-    _estilizar_cabecalho(ws_neg, len(cab_neg))
-    for n in negocios:
-        ws_neg.append(
+    ws_perf.append(cab_perf)
+    _estilizar_cabecalho(ws_perf, len(cab_perf))
+    for v in perf:
+        ws_perf.append(
             [
-                n.get("data_registro", ""),
-                n.get("id"),
-                n.get("referencia", ""),
-                n.get("cliente") or "",
-                n.get("vendedor") or "",
-                n.get("valor"),
-                n.get("status", ""),
-                n.get("motivo_perda") or "",
-                n.get("id_tratativa") or "",
-                n.get("concorrencia") or "",
-                n.get("observacao") or "",
-                n.get("criado_em", ""),
-                n.get("atualizado_em", ""),
+                v.get("data_registro", ""),
+                v.get("pedido", ""),
+                v.get("cliente") or "",
+                v.get("vendedor") or "",
+                v.get("valor"),
+                v.get("status_venda", ""),
+                v.get("previsao_data") or "",
+                v.get("concorrencia") or "",
+                v.get("observacao") or "",
             ]
         )
-    _ajustar_larguras(ws_neg, [18, 6, 18, 16, 14, 12, 16, 14, 10, 22, 28, 18, 18])
+    _ajustar_larguras(ws_perf, [18, 14, 16, 14, 12, 18, 14, 22, 28])
+
+    ws_vtrat = wb.create_sheet("Vendas Tratativa")
+    cab_vt = [
+        "Data",
+        "ID Tratativa",
+        "Orçamento tratativa",
+        "Pedido",
+        "Valor (R$)",
+        "Resultado",
+        "Setor",
+        "Situação",
+        "Observação",
+    ]
+    ws_vtrat.append(cab_vt)
+    _estilizar_cabecalho(ws_vtrat, len(cab_vt))
+    for v in vtrat:
+        res = v.get("resultado_tratativa") or ""
+        if res == "com_impacto":
+            res = "Com impacto"
+        elif res == "sem_impacto":
+            res = "Sem impacto"
+        ws_vtrat.append(
+            [
+                v.get("data_registro", ""),
+                v.get("id_tratativa"),
+                v.get("tratativa_orcamento") or "",
+                v.get("pedido", ""),
+                v.get("valor"),
+                res,
+                v.get("tratativa_setor") or "",
+                v.get("tratativa_situacao") or "",
+                v.get("observacao") or "",
+            ]
+        )
+    _ajustar_larguras(ws_vtrat, [18, 10, 14, 14, 12, 14, 14, 32, 28])
 
     ws_trat = wb.create_sheet("Tratativas")
     cab_trat = [
         "Data",
         "ID",
+        "Nº Orçamento",
         "Setor",
         "Situação",
-        "Tempo de Solução",
+        "Código item",
+        "Tempo solução",
         "R$ Impacto",
         "Status",
-        "Código item",
         "Observação",
-        "Criado em",
-        "Atualizado em",
     ]
     ws_trat.append(cab_trat)
     _estilizar_cabecalho(ws_trat, len(cab_trat))
@@ -97,78 +123,40 @@ def gerar_excel() -> tuple[BytesIO, str]:
             [
                 t.get("data_registro", ""),
                 t.get("id"),
+                t.get("numero_orcamento") or "",
                 t.get("setor", ""),
                 t.get("situacao", ""),
+                t.get("codigo_item") or "",
                 t.get("tempo_solucao") or "",
                 t.get("impacto_reais"),
                 t.get("status", ""),
-                t.get("codigo_item") or "",
                 t.get("observacao") or "",
-                t.get("criado_em", ""),
-                t.get("atualizado_em", ""),
             ]
         )
-    _ajustar_larguras(ws_trat, [18, 6, 14, 38, 14, 12, 22, 14, 30, 18, 18])
-
-    ws_vendas = wb.create_sheet("Vendas")
-    cab_vendas = [
-        "Data",
-        "Pedido",
-        "Valor (R$)",
-        "Convertido",
-        "Motivo perda",
-        "ID Tratativa",
-        "Concorrência",
-        "Setor (tratativa)",
-        "Situação (tratativa)",
-        "Observação",
-        "Criado em",
-        "Atualizado em",
-    ]
-    ws_vendas.append(cab_vendas)
-    _estilizar_cabecalho(ws_vendas, len(cab_vendas))
-    for v in vendas:
-        ws_vendas.append(
-            [
-                v.get("data_registro", ""),
-                v.get("pedido", ""),
-                v.get("valor"),
-                "Sim" if v.get("convertido") else "Não",
-                v.get("motivo_perda") or "",
-                v.get("id_perda") or "",
-                v.get("concorrencia") or "",
-                v.get("tratativa_setor") or "",
-                v.get("tratativa_situacao") or "",
-                v.get("observacao") or "",
-                v.get("criado_em", ""),
-                v.get("atualizado_em", ""),
-            ]
-        )
-    _ajustar_larguras(ws_vendas, [18, 14, 12, 10, 14, 10, 22, 14, 38, 30, 18, 18])
+    _ajustar_larguras(ws_trat, [18, 6, 14, 14, 38, 12, 14, 12, 22, 30])
 
     ws_resumo = wb.create_sheet("Resumo", 0)
     ws_resumo.append(["Vendas & Tratativas — Exportação"])
     ws_resumo["A1"].font = Font(bold=True, size=14)
     ws_resumo.append(["Exportado em (Brasília)", agora_iso()])
     ws_resumo.append([])
-    ws_resumo.append(["Negócios"])
-    ws_resumo.append(["Total", m_neg["total"]])
-    ws_resumo.append(["Em acompanhamento", m_neg["em_acompanhamento"]])
-    ws_resumo.append(["Convertidos", m_neg["convertidos"]])
-    ws_resumo.append(["Perdidos", m_neg["perdidos"]])
-    ws_resumo.append(["Taxa conversão (%)", m_neg["taxa_conversao"]])
+    ws_resumo.append(["Vendas Performance (direto)"])
+    ws_resumo.append(["Total", m_perf["total"]])
+    ws_resumo.append(["Realizadas", m_perf["realizadas"]])
+    ws_resumo.append(["Em andamento", m_perf["em_andamento"]])
+    ws_resumo.append(["Perdidos", m_perf["perdidos"]])
+    ws_resumo.append(["Taxa (%)", m_perf["taxa_conversao"]])
+    ws_resumo.append([])
+    ws_resumo.append(["Vendas via tratativa"])
+    ws_resumo.append(["Total convertidas", m_vtrat["total"]])
+    ws_resumo.append(["Sem impacto", m_vtrat["sem_impacto"]])
+    ws_resumo.append(["Com impacto", m_vtrat["com_impacto"]])
     ws_resumo.append([])
     ws_resumo.append(["Tratativas"])
     ws_resumo.append(["Total", m_trat["total"]])
     ws_resumo.append(["Em aberto", m_trat["em_andamento"]])
-    ws_resumo.append(["Impacto (R$)", m_trat["impacto_total"]])
-    ws_resumo.append([])
-    ws_resumo.append(["Vendas"])
-    ws_resumo.append(["Total", m_vendas["total"]])
-    ws_resumo.append(["Convertidas", m_vendas["convertidas"]])
-    ws_resumo.append(["Sem conversão", m_vendas["sem_conversao"]])
-    ws_resumo.append(["Taxa conversão (%)", m_vendas["taxa_conversao"]])
-    _ajustar_larguras(ws_resumo, [28, 22])
+    ws_resumo.append(["Resolvidas", m_trat["resolvidas"]])
+    _ajustar_larguras(ws_resumo, [32, 22])
 
     buffer = BytesIO()
     wb.save(buffer)

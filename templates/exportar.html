@@ -4,7 +4,7 @@
 <header class="page-header">
   <div>
     <h1>Exportar para Excel</h1>
-    <p class="subtitle">Negócios, tratativas e vendas — horário de Brasília no resumo</p>
+    <p class="subtitle">Performance, vendas via tratativa e tratativas — métricas separadas no resumo</p>
   </div>
 </header>
 
@@ -12,29 +12,25 @@
   <article class="card export-card">
     <span class="export-icon">📊</span>
     <h2>Planilha completa</h2>
-    <p class="section-desc">Abas: <strong>Resumo</strong>, <strong>Negócios</strong>, <strong>Tratativas</strong> e <strong>Vendas</strong>.</p>
     <ul class="export-list">
-      <li><strong>{{ total_negocios }}</strong> negócios</li>
-      <li><strong>{{ total_tratativas }}</strong> tratativas</li>
-      <li><strong>{{ total_vendas }}</strong> vendas</li>
-      <li>Taxa conversão negócios: {{ m_neg.taxa_conversao }}%</li>
+      <li><strong>{{ m_perf.total }}</strong> registros Performance</li>
+      <li><strong>{{ m_vtrat.total }}</strong> vendas via tratativa</li>
+      <li><strong>{{ m_trat.total }}</strong> tratativas</li>
     </ul>
-    <a href="{{ url_for('exportar_excel') }}" class="btn btn-primary btn-block export-btn">
-      Baixar Excel (.xlsx)
-    </a>
+    <a href="{{ url_for('exportar_excel') }}" class="btn btn-primary btn-block export-btn">Baixar Excel (.xlsx)</a>
   </article>
-
   <article class="card">
-    <h2 class="card-title">Conteúdo das abas</h2>
+    <h2 class="card-title">Abas</h2>
     <dl class="export-dl">
-      <dt>Negócios</dt>
-      <dd>Referência, cliente, vendedor, status, motivo de perda, tratativa ou concorrência</dd>
+      <dt>Resumo</dt>
+      <dd>Performance vs tratativa — contagens separadas</dd>
+      <dt>Vendas Performance</dt>
+      <dd>Follow-up direto, status e previsão</dd>
+      <dt>Vendas Tratativa</dt>
+      <dd>Convertidas com/sem impacto</dd>
       <dt>Tratativas</dt>
-      <dd>Data, ID, Setor, Situação, Tempo, Impacto R$, Status</dd>
-      <dt>Vendas</dt>
-      <dd>Pedido, valor, conversão, motivo de perda, tratativa ou concorrência</dd>
+      <dd>Inclui nº orçamento e código item</dd>
     </dl>
-    <p class="form-hint">Dados gerados na hora a partir do banco (Supabase na nuvem).</p>
   </article>
 </section>
 {% endblock %}

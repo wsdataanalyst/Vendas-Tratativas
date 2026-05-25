@@ -131,11 +131,23 @@ STATUS_TRATATIVA = [
 
 STATUS_EM_ABERTO = ("Em andamento", "Em andamento c/impacto", "Sem resposta")
 
-STATUS_NEGOCIO = [
-    "Em acompanhamento",
-    "Convertido",
-    "Perdido",
+# Vendas Performance — acompanhamento direto (sem tratativa)
+STATUS_VENDA_PERFORMANCE = [
+    "Venda Realizada",
+    "Em andamento",
+    "Negócio perdido",
 ]
+
+TIPO_VENDA_PERFORMANCE = "performance"
+TIPO_VENDA_TRATATIVA = "tratativa"
+
+STATUS_TRATATIVA_RESOLVIDA = (
+    "Resolvido com impacto",
+    "Resolvido sem impacto",
+)
+
+RESULTADO_SEM_IMPACTO = "sem_impacto"
+RESULTADO_COM_IMPACTO = "com_impacto"
 
 MOTIVOS_PERDA = [
     ("tratativa", "Problema interno (Tratativa)"),

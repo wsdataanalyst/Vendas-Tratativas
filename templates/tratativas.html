@@ -4,7 +4,7 @@
 <header class="page-header">
   <div>
     <h1>Tratativas</h1>
-    <p class="subtitle">Problemas internos da empresa (logística, compras, TI, financeiro) — origem do impacto nas vendas perdidas</p>
+    <p class="subtitle">Problemas internos — use o <strong>nº do orçamento</strong> para identificar o pedido. Vendas convertidas via tratativa são registradas aqui (separadas do Performance).</p>
   </div>
   <button type="button" class="btn btn-primary" data-open="modal-nova-tratativa">+ Nova tratativa</button>
 </header>
@@ -71,10 +71,22 @@
       <time datetime="{{ t.data_registro }}">{{ t.data_registro[:16] }}</time>
     </div>
     <h3 class="card-situacao">{{ t.situacao }}</h3>
+    {% if t.numero_orcamento %}
+    <p class="card-codigo-item">Orçamento: <strong>{{ t.numero_orcamento }}</strong></p>
+    {% endif %}
+    {% if t.codigo_item %}
+    <p class="card-codigo-item">Código item: <strong>{{ t.codigo_item }}</strong></p>
+    {% endif %}
     <dl class="card-details">
       <div><dt>Tempo de solução</dt><dd>{{ t.tempo_solucao or '—' }}</dd></div>
       <div><dt>Impacto R$</dt><dd class="impact">{{ moeda(t.impacto_reais) if t.impacto_reais else '—' }}</dd></div>
     </dl>
+    {% if vendas_trat.get(t.id) %}
+    {% set vt = vendas_trat[t.id] %}
+    <p class="card-obs tag-tratativa-venda">Venda: {{ moeda(vt.valor) }} — {% if vt.resultado_tratativa == 'com_impacto' %}Com impacto{% else %}Sem impacto{% endif %}</p>
+    {% elif t.status in status_resolvidos %}
+    <button type="button" class="btn btn-ghost btn-sm btn-venda-trat" data-tid="{{ t.id }}" data-orcamento="{{ t.numero_orcamento or '' }}">+ Registrar venda convertida</button>
+    {% endif %}
     <div class="card-foot">
       <span class="status-pill">{{ t.status }}</span>
       <div class="card-actions">
@@ -127,6 +139,9 @@
       <label>Impacto R$
         <input type="number" name="impacto_reais" step="0.01" min="0" placeholder="0,00">
       </label>
+      <label class="span-2">Nº orçamento / pedido
+        <input type="text" name="numero_orcamento" placeholder="Número do orçamento para localizar o pedido">
+      </label>
       <label class="span-2">Status *
         <select name="status" required>
           <option value="">Selecione</option>
@@ -171,6 +186,9 @@
       <label>Impacto R$
         <input type="number" name="impacto_reais" id="edit-impacto" step="0.01" min="0">
       </label>
+      <label class="span-2">Nº orçamento / pedido
+        <input type="text" name="numero_orcamento" id="edit-orcamento" placeholder="Número do orçamento">
+      </label>
       <label class="span-2">Status *
         <select name="status" id="edit-status" required>
           {% for st in status_opts %}<option value="{{ st }}">{{ st }}</option>{% endfor %}
@@ -183,6 +201,28 @@
     <div class="modal-actions">
       <button type="button" class="btn btn-ghost" data-close>Cancelar</button>
       <button type="submit" class="btn btn-primary">Atualizar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="modal-venda-tratativa" class="modal">
+  <form method="post" action="" class="form modal-form" id="form-venda-tratativa">
+    <h2>Registrar venda da tratativa</h2>
+    <p class="form-hint">Conta como <strong>venda convertida via tratativa</strong> (métrica separada do Performance).</p>
+    <div class="form-grid">
+      <label>Pedido / orçamento *
+        <input type="text" name="pedido" id="venda-trat-pedido" required>
+      </label>
+      <label>Valor (R$) *
+        <input type="number" name="valor" step="0.01" min="0" required>
+      </label>
+      <label class="span-2">Observação
+        <textarea name="observacao" rows="2"></textarea>
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" data-close>Cancelar</button>
+      <button type="submit" class="btn btn-primary">Registrar venda</button>
     </div>
   </form>
 </dialog>
@@ -205,8 +245,19 @@
       document.getElementById('edit-status').value = t.status;
       document.getElementById('edit-obs').value = t.observacao || '';
       document.getElementById('edit-codigo-item').value = t.codigo_item || '';
+      document.getElementById('edit-orcamento').value = t.numero_orcamento || '';
       if (window.atualizarCampoCodigoItem) window.atualizarCampoCodigoItem(form);
       document.getElementById('modal-editar-tratativa').showModal();
+    });
+  });
+
+  document.querySelectorAll('.btn-venda-trat').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tid = btn.dataset.tid;
+      const form = document.getElementById('form-venda-tratativa');
+      form.action = `/tratativas/${tid}/venda`;
+      document.getElementById('venda-trat-pedido').value = btn.dataset.orcamento || `TRAT-${tid}`;
+      document.getElementById('modal-venda-tratativa').showModal();
     });
   });
 </script>
