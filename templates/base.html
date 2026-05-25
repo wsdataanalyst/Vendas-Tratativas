@@ -8,7 +8,7 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 </head>
-<body>
+<body{% if session.get('autenticado') %} data-sync-version="{{ sync_version }}"{% endif %}>
   {% if session.get('autenticado') %}
   <nav class="nav">
     <a href="{{ url_for('dashboard') }}" class="nav-brand">
@@ -17,6 +17,10 @@
     </a>
     <div class="nav-links">
       <a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">Painel</a>
+      <a href="{{ url_for('negocios_lista') }}" class="{% if 'negocio' in (request.endpoint or '') %}active{% endif %}">
+        Negócios
+        {% if contagens.negocios_acompanhamento %}<span class="nav-badge">{{ contagens.negocios_acompanhamento }}</span>{% endif %}
+      </a>
       <a href="{{ url_for('tratativas_lista') }}" class="{% if 'tratativa' in (request.endpoint or '') %}active{% endif %}">
         Tratativas
         {% if contagens.tratativas_abertas %}<span class="nav-badge warn">{{ contagens.tratativas_abertas }}</span>{% endif %}

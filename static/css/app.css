@@ -549,6 +549,36 @@ body {
 .empty, .empty-state { color: var(--muted); text-align: center; padding: 2rem; }
 .empty-state .btn { margin-top: 1rem; }
 
+.card-codigo-item {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0.25rem 0 0.5rem;
+}
+.card-codigo-item strong { color: var(--primary); }
+
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.radio-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+.radio-card:has(input:checked) {
+  border-color: var(--primary);
+  background: rgba(59, 130, 246, 0.12);
+}
+.form-label { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.35rem; }
+.sync-hint { font-size: 0.8rem; color: var(--muted); margin-top: 0.35rem; }
+
 @media (max-width: 600px) {
   .form-grid { grid-template-columns: 1fr; }
   .form-grid .span-2 { grid-column: span 1; }

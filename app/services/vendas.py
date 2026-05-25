@@ -1,10 +1,6 @@
-from datetime import datetime
-
 from app.database import get_db
-
-
-def _now() -> str:
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+from app.utils.datetime_br import agora_iso
+from app.utils.realtime import marcar_atualizacao
 
 
 def listar_sem_conversao():
@@ -35,56 +31,68 @@ def listar():
 
 
 def criar(dados: dict) -> int:
-    agora = _now()
+    agora = agora_iso()
     with get_db() as conn:
         cur = conn.execute(
             """
             INSERT INTO vendas (
-                data_registro, pedido, valor, convertido,
-                id_perda, observacao, criado_em, atualizado_em
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                data_registro, pedido, valor, convertido, motivo_perda,
+                id_perda, concorrencia, observacao, criado_em, atualizado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 dados.get("data_registro") or agora,
                 dados["pedido"],
                 float(dados["valor"]),
                 1 if dados.get("convertido") else 0,
+                dados.get("motivo_perda"),
                 dados.get("id_perda") or None,
+                dados.get("concorrencia"),
                 dados.get("observacao"),
                 agora,
                 agora,
             ),
         )
-        return cur.lastrowid
+        vid = cur.lastrowid
+    marcar_atualizacao()
+    return vid
 
 
 def atualizar(venda_id: int, dados: dict) -> bool:
-    agora = _now()
+    agora = agora_iso()
     with get_db() as conn:
         cur = conn.execute(
             """
             UPDATE vendas SET
-                pedido = ?, valor = ?, convertido = ?,
-                id_perda = ?, observacao = ?, atualizado_em = ?
+                pedido = ?, valor = ?, convertido = ?, motivo_perda = ?,
+                id_perda = ?, concorrencia = ?, observacao = ?, atualizado_em = ?
             WHERE id = ?
             """,
             (
                 dados["pedido"],
                 float(dados["valor"]),
                 1 if dados.get("convertido") else 0,
+                dados.get("motivo_perda"),
                 dados.get("id_perda") or None,
+                dados.get("concorrencia"),
                 dados.get("observacao"),
                 agora,
                 venda_id,
             ),
         )
-        return cur.rowcount > 0
+        ok = cur.rowcount > 0
+    if ok:
+        marcar_atualizacao()
+    return ok
 
 
 def excluir(venda_id: int) -> bool:
     with get_db() as conn:
         cur = conn.execute("DELETE FROM vendas WHERE id = ?", (venda_id,))
-        return cur.rowcount > 0
+        ok = cur.rowcount > 0
+    if ok:
+        marcar_atualizacao()
+    return ok
 
 
 def metricas():
@@ -103,7 +111,14 @@ def metricas():
             "SELECT COUNT(*) FROM vendas WHERE convertido = 0"
         ).fetchone()[0]
         sem_conversao_sem_vinculo = conn.execute(
-            "SELECT COUNT(*) FROM vendas WHERE convertido = 0 AND id_perda IS NULL"
+            """
+            SELECT COUNT(*) FROM vendas
+            WHERE convertido = 0
+            AND (
+                (COALESCE(motivo_perda, 'tratativa') = 'tratativa' AND id_perda IS NULL)
+                OR (motivo_perda = 'concorrencia' AND (concorrencia IS NULL OR concorrencia = ''))
+            )
+            """
         ).fetchone()[0]
         valor_perdido = conn.execute(
             "SELECT COALESCE(SUM(valor), 0) FROM vendas WHERE convertido = 0"

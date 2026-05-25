@@ -8,9 +8,36 @@
 | Wi-Fi / ngrok complicado | Link fixo no celular |
 | Difícil para Mayara | Abre como um site normal |
 
-**Solução:** hospedar grátis no **Render** + banco grátis no **Supabase**.
+**Solução:** hospedar no **Render** + banco no **Supabase**.
 
 Depois de configurado **uma vez**, Mayara e Willame só abrem o link no celular (pode salvar na tela inicial).
+
+### Atualização em tempo real
+
+Quando Mayara registra um negócio, tratativa ou venda, o painel do gestor **atualiza sozinho** em alguns segundos (e vice-versa), sem precisar dar F5 manualmente.
+
+### Horário
+
+Todos os registros usam o fuso **America/Sao_Paulo** (horário de Brasília).
+
+### Disponibilidade 24 horas
+
+| Plano Render | Comportamento |
+|--------------|----------------|
+| **Free** | O app “dorme” após ~15 min sem acesso; o primeiro acesso pode levar ~30–60 s para acordar |
+| **Starter (pago)** | Fica ligado 24/7 — recomendado para uso comercial diário |
+
+Para uso contínuo sem pausas, faça upgrade do serviço no Render (plano pago) ou use um monitor de uptime (ex.: UptimeRobot) que acessa `/health` a cada 5 min — isso mantém o free acordado na maior parte do tempo.
+
+### Segurança (opcional no Render)
+
+Defina senhas fortes nas variáveis de ambiente (em vez das padrão):
+
+| Variável | Quem |
+|----------|------|
+| `MAYARA_PASSWORD` | Mayara Barros |
+| `GESTOR_PASSWORD` | Willame Sousa |
+| `APP_SECRET_KEY` | Chave longa e aleatória da sessão |
 
 ---
 

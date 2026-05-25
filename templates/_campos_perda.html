@@ -1,0 +1,33 @@
+<div class="span-2 campos-perda" style="display:none">
+  <p class="form-label">Motivo da perda *</p>
+  <div class="motivo-perda-grid">
+    {% for val, label in motivos_perda %}
+    <label class="radio-card">
+      <input type="radio" name="motivo_perda" value="{{ val }}" {% if val == 'tratativa' %}checked{% endif %}>
+      <span>{{ label }}</span>
+    </label>
+    {% endfor %}
+  </div>
+  <label class="campo-tratativa span-2">
+    ID da tratativa *
+    <select name="id_tratativa" class="sel-id-tratativa">
+      <option value="">— Selecione —</option>
+      {% if tratativas_abertas %}
+      <optgroup label="Em aberto">
+        {% for t in tratativas_abertas %}
+        <option value="{{ t.id }}">#{{ t.id }} — {{ t.setor }} — {{ t.situacao[:45] }}</option>
+        {% endfor %}
+      </optgroup>
+      {% endif %}
+      <optgroup label="Todas">
+        {% for t in tratativas %}
+        <option value="{{ t.id }}">#{{ t.id }} — {{ t.setor }} — {{ t.situacao[:45] }}</option>
+        {% endfor %}
+      </optgroup>
+    </select>
+  </label>
+  <label class="campo-concorrencia span-2" style="display:none">
+    Concorrência / motivo (preço) *
+    <input type="text" name="concorrencia" class="inp-concorrencia" placeholder="Ex.: Concorrente X — preço menor">
+  </label>
+</div>

@@ -1,32 +1,39 @@
-"""Usuários locais — operacional e gestor."""
+"""Usuários — senhas podem ser definidas por variáveis de ambiente no Render."""
+
+import os
 
 USUARIOS = {
     "mayara": {
         "nome": "Mayara Barros",
         "perfil": "operacional",
-        "senha": "mayara",
+        "env_senha": "MAYARA_PASSWORD",
+        "senha_padrao": "mayara",
         "titulo_boas_vindas": "Bem-vinda, Mayara Barros!",
         "subtitulo_boas_vindas": (
-            "Registre o acompanhamento de clientes e o fechamento de negócios "
+            "Registre negócios em acompanhamento, tratativas e fechamentos "
             "junto aos vendedores."
         ),
     },
     "gestor": {
         "nome": "Willame Sousa",
         "perfil": "gestor",
-        "senha": "161217",
+        "env_senha": "GESTOR_PASSWORD",
+        "senha_padrao": "161217",
         "titulo_boas_vindas": "Bem-vindo, Willame Sousa!",
         "subtitulo_boas_vindas": (
-            "Visão gerencial dos números e registros de Mayara Barros — "
-            "vendas, conversão e tratativas da empresa."
+            "Visão gerencial em tempo real — negócios, conversão e tratativas."
         ),
     },
 }
 
 
+def _senha_usuario(user: dict) -> str:
+    return os.getenv(user["env_senha"], user["senha_padrao"])
+
+
 def autenticar(usuario_id: str, senha: str) -> dict | None:
     user = USUARIOS.get(usuario_id)
-    if user and user["senha"] == senha:
+    if user and senha == _senha_usuario(user):
         return {
             "id": usuario_id,
             "nome": user["nome"],

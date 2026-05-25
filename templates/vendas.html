@@ -4,7 +4,7 @@
 <header class="page-header">
   <div>
     <h1>Vendas</h1>
-    <p class="subtitle">Como <strong>Mayara Barros</strong> acompanha clientes e fecha negócios junto aos vendedores. Venda perdida = vincular ID da tratativa (o impacto vem de lá).</p>
+    <p class="subtitle">Pedidos convertidos ou perdidos. Perda por problema interno exige ID da tratativa; por concorrência, informe o concorrente (sem tratativa).</p>
   </div>
   <button type="button" class="btn btn-primary" data-open="modal-nova-venda">+ Nova venda</button>
 </header>
@@ -17,20 +17,22 @@
   </div>
   <div class="cards-grid">
     {% for v in sem_conversao %}
-    <article class="venda-card card perdida {% if not v.id_perda %}sem-vinculo{% endif %}">
+    <article class="venda-card card perdida {% if v.motivo_perda != 'concorrencia' and not v.id_perda %}sem-vinculo{% endif %}">
       <div class="card-head">
         <span class="badge-id">Pedido {{ v.pedido }}</span>
-        <time>{{ v.data_registro[:16] }}</time>
+        <time>{{ formatar_data(v.data_registro) }}</time>
       </div>
       <p class="venda-valor">{{ moeda(v.valor) }}</p>
-      {% if v.id_perda %}
+      {% if v.motivo_perda == 'concorrencia' and v.concorrencia %}
+      <p class="card-obs">Concorrência: {{ v.concorrencia }}</p>
+      {% elif v.id_perda %}
       <p class="card-obs">Tratativa #{{ v.id_perda }} — {{ v.tratativa_setor }}: {{ v.tratativa_situacao }}</p>
       {% else %}
-      <p class="card-obs aviso">Vincule o ID da tratativa (origem do impacto)</p>
+      <p class="card-obs aviso">Vincule tratativa ou marque concorrência</p>
       {% endif %}
       <div class="card-foot">
         <span class="status-pill warn">Não convertido</span>
-        <button type="button" class="btn btn-ghost btn-sm btn-edit-venda" data-item='{{ v | tojson }}'>Editar / vincular</button>
+        <button type="button" class="btn btn-ghost btn-sm btn-edit-venda" data-item='{{ v | tojson }}'>Editar</button>
       </div>
     </article>
     {% endfor %}
@@ -42,33 +44,32 @@
 <h2 class="section-label">Todas as vendas</h2>
 <section class="cards-grid vendas-grid">
   {% for v in itens %}
-  <article class="venda-card card {% if v.convertido %}convertida{% else %}perdida{% endif %} {% if not v.convertido and not v.id_perda %}sem-vinculo{% endif %}">
+  <article class="venda-card card {% if v.convertido %}convertida{% else %}perdida{% endif %}">
     <div class="card-head">
       <span class="badge-id">Pedido {{ v.pedido }}</span>
-      <time datetime="{{ v.data_registro }}">{{ v.data_registro[:16] }}</time>
+      <time>{{ formatar_data(v.data_registro) }}</time>
     </div>
     <p class="venda-valor">{{ moeda(v.valor) }}</p>
     <div class="card-foot">
       {% if v.convertido %}
-      <span class="status-pill ok">Convertido — fechado com vendedor</span>
+      <span class="status-pill ok">Convertido</span>
       {% else %}
       <span class="status-pill warn">Não convertido</span>
-      {% if v.id_perda %}
+      {% if v.motivo_perda == 'concorrencia' %}
+      <span class="badge-link">Concorrência</span>
+      {% elif v.id_perda %}
       <span class="badge-link">Tratativa #{{ v.id_perda }}</span>
       {% else %}
-      <span class="badge-aviso">Sem vínculo</span>
+      <span class="badge-aviso">Pendente vínculo</span>
       {% endif %}
       {% endif %}
       <div class="card-actions">
         <button type="button" class="btn btn-ghost btn-sm btn-edit-venda" data-item='{{ v | tojson }}'>Editar</button>
-        <form method="post" action="{{ url_for('venda_excluir', vid=v.id) }}" class="inline" onsubmit="return confirm('Excluir este registro?')">
+        <form method="post" action="{{ url_for('venda_excluir', vid=v.id) }}" class="inline" onsubmit="return confirm('Excluir?')">
           <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
         </form>
       </div>
     </div>
-    {% if v.tratativa_situacao and not v.convertido %}
-    <p class="card-obs">{{ v.tratativa_setor }} — {{ v.tratativa_situacao }}</p>
-    {% endif %}
   </article>
   {% else %}
   <div class="empty-state card span-all">
@@ -81,44 +82,57 @@
 <dialog id="modal-nova-venda" class="modal">
   <form method="post" action="{{ url_for('venda_nova') }}" class="form modal-form form-venda">
     <h2>Nova venda</h2>
-    <p class="form-hint">Registre o acompanhamento do cliente e se o pedido foi convertido com o vendedor.</p>
     <div class="form-grid">
       <label>Pedido *
-        <input type="text" name="pedido" required placeholder="Nº do pedido">
+        <input type="text" name="pedido" required>
       </label>
       <label>Valor (R$) *
-        <input type="number" name="valor" step="0.01" min="0" required placeholder="0,00">
+        <input type="number" name="valor" step="0.01" min="0" required>
       </label>
       <label class="checkbox-label span-2">
         <input type="checkbox" name="convertido" class="chk-convertido">
-        Pedido convertido (fechado com o vendedor)
+        Pedido convertido (fechado)
       </label>
-      <label class="span-2 campo-id-perda">
-        ID da perda (tratativa) *
-        <select name="id_perda" class="sel-id-perda">
-          <option value="">— Selecione a tratativa —</option>
-          {% if tratativas_abertas %}
-          <optgroup label="Tratativas em aberto">
-            {% for t in tratativas_abertas %}
-            <option value="{{ t.id }}">#{{ t.id }} — {{ t.setor }} — {{ t.situacao[:45] }}</option>
-            {% endfor %}
-          </optgroup>
-          {% endif %}
-          <optgroup label="Todas as tratativas">
-            {% for t in tratativas %}
-            <option value="{{ t.id }}">#{{ t.id }} — {{ t.setor }} — {{ t.situacao[:45] }}</option>
-            {% endfor %}
-          </optgroup>
-        </select>
-        <span class="field-hint">Obrigatório quando o pedido não for convertido — o impacto vem da tratativa.</span>
-      </label>
+      <div class="span-2 campos-perda" style="display:none">
+        <p class="form-label">Motivo da perda *</p>
+        <div class="motivo-perda-grid">
+          {% for val, label in motivos_perda %}
+          <label class="radio-card">
+            <input type="radio" name="motivo_perda" value="{{ val }}" {% if val == 'tratativa' %}checked{% endif %}>
+            <span>{{ label }}</span>
+          </label>
+          {% endfor %}
+        </div>
+        <label class="campo-tratativa span-2">
+          ID da tratativa *
+          <select name="id_perda" class="sel-id-tratativa">
+            <option value="">— Selecione —</option>
+            {% if tratativas_abertas %}
+            <optgroup label="Em aberto">
+              {% for t in tratativas_abertas %}
+              <option value="{{ t.id }}">#{{ t.id }} — {{ t.setor }} — {{ t.situacao[:45] }}</option>
+              {% endfor %}
+            </optgroup>
+            {% endif %}
+            <optgroup label="Todas">
+              {% for t in tratativas %}
+              <option value="{{ t.id }}">#{{ t.id }} — {{ t.setor }} — {{ t.situacao[:45] }}</option>
+              {% endfor %}
+            </optgroup>
+          </select>
+        </label>
+        <label class="campo-concorrencia span-2" style="display:none">
+          Concorrência *
+          <input type="text" name="concorrencia" class="inp-concorrencia" placeholder="Concorrente / preço">
+        </label>
+      </div>
       <label class="span-2">Observação
-        <textarea name="observacao" rows="2" placeholder="Cliente, vendedor, contexto do acompanhamento"></textarea>
+        <textarea name="observacao" rows="2"></textarea>
       </label>
     </div>
     <div class="modal-actions">
       <button type="button" class="btn btn-ghost" data-close>Cancelar</button>
-      <button type="submit" class="btn btn-primary">Salvar venda</button>
+      <button type="submit" class="btn btn-primary">Salvar</button>
     </div>
   </form>
 </dialog>
@@ -127,37 +141,36 @@
   <form method="post" action="" class="form modal-form form-venda" id="form-editar-venda">
     <h2>Editar venda</h2>
     <div class="form-grid">
-      <label>Pedido *
-        <input type="text" name="pedido" id="edit-pedido" required>
-      </label>
-      <label>Valor (R$) *
-        <input type="number" name="valor" id="edit-valor" step="0.01" min="0" required>
-      </label>
+      <label>Pedido *<input type="text" name="pedido" id="edit-pedido" required></label>
+      <label>Valor (R$) *<input type="number" name="valor" id="edit-valor" step="0.01" min="0" required></label>
       <label class="checkbox-label span-2">
-        <input type="checkbox" name="convertido" id="edit-convertido" class="chk-convertido">
-        Pedido convertido
+        <input type="checkbox" name="convertido" id="edit-convertido" class="chk-convertido"> Convertido
       </label>
-      <label class="span-2 campo-id-perda">
-        ID da perda (tratativa) *
-        <select name="id_perda" id="edit-id-perda" class="sel-id-perda">
-          <option value="">— Selecione —</option>
-          {% if tratativas_abertas %}
-          <optgroup label="Em aberto">
-            {% for t in tratativas_abertas %}
-            <option value="{{ t.id }}">#{{ t.id }} — {{ t.setor }} — {{ t.situacao[:45] }}</option>
-            {% endfor %}
-          </optgroup>
-          {% endif %}
-          <optgroup label="Todas">
+      <div class="span-2 campos-perda" style="display:none">
+        <p class="form-label">Motivo da perda *</p>
+        <div class="motivo-perda-grid">
+          {% for val, label in motivos_perda %}
+          <label class="radio-card">
+            <input type="radio" name="motivo_perda" value="{{ val }}" {% if val == 'tratativa' %}checked{% endif %}>
+            <span>{{ label }}</span>
+          </label>
+          {% endfor %}
+        </div>
+        <label class="campo-tratativa span-2">
+          ID da tratativa *
+          <select name="id_perda" id="edit-id-perda" class="sel-id-tratativa">
+            <option value="">—</option>
             {% for t in tratativas %}
-            <option value="{{ t.id }}">#{{ t.id }} — {{ t.setor }} — {{ t.situacao[:45] }}</option>
+            <option value="{{ t.id }}">#{{ t.id }} — {{ t.setor }}</option>
             {% endfor %}
-          </optgroup>
-        </select>
-      </label>
-      <label class="span-2">Observação
-        <textarea name="observacao" id="edit-obs-venda" rows="2"></textarea>
-      </label>
+          </select>
+        </label>
+        <label class="campo-concorrencia span-2" style="display:none">
+          Concorrência *
+          <input type="text" name="concorrencia" id="edit-concorrencia" class="inp-concorrencia">
+        </label>
+      </div>
+      <label class="span-2">Observação<textarea name="observacao" id="edit-obs-venda" rows="2"></textarea></label>
     </div>
     <div class="modal-actions">
       <button type="button" class="btn btn-ghost" data-close>Cancelar</button>
@@ -177,9 +190,13 @@
       document.getElementById('edit-pedido').value = v.pedido;
       document.getElementById('edit-valor').value = v.valor;
       document.getElementById('edit-convertido').checked = !!v.convertido;
+      const motivo = v.motivo_perda || 'tratativa';
+      const r = form.querySelector(`input[name="motivo_perda"][value="${motivo}"]`);
+      if (r) r.checked = true;
       document.getElementById('edit-id-perda').value = v.id_perda || '';
+      document.getElementById('edit-concorrencia').value = v.concorrencia || '';
       document.getElementById('edit-obs-venda').value = v.observacao || '';
-      if (window.atualizarCampoPerda) window.atualizarCampoPerda(form);
+      if (window.atualizarCamposPerda) window.atualizarCamposPerda(form);
       document.getElementById('modal-editar-venda').showModal();
     });
   });

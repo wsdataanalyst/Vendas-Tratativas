@@ -1,11 +1,7 @@
-from datetime import datetime
-
 from app.config import STATUS_EM_ABERTO
 from app.database import get_db
-
-
-def _now() -> str:
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+from app.utils.datetime_br import agora_iso
+from app.utils.realtime import marcar_atualizacao
 
 
 def listar_em_aberto():
@@ -40,14 +36,14 @@ def obter(tratativa_id: int):
 
 
 def criar(dados: dict) -> int:
-    agora = _now()
+    agora = agora_iso()
     with get_db() as conn:
         cur = conn.execute(
             """
             INSERT INTO tratativas (
                 data_registro, setor, situacao, tempo_solucao,
-                impacto_reais, status, observacao, criado_em, atualizado_em
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                impacto_reais, status, codigo_item, observacao, criado_em, atualizado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 dados.get("data_registro") or agora,
@@ -56,22 +52,25 @@ def criar(dados: dict) -> int:
                 dados.get("tempo_solucao"),
                 dados.get("impacto_reais"),
                 dados["status"],
+                dados.get("codigo_item"),
                 dados.get("observacao"),
                 agora,
                 agora,
             ),
         )
-        return cur.lastrowid
+        tid = cur.lastrowid
+    marcar_atualizacao()
+    return tid
 
 
 def atualizar(tratativa_id: int, dados: dict) -> bool:
-    agora = _now()
+    agora = agora_iso()
     with get_db() as conn:
         cur = conn.execute(
             """
             UPDATE tratativas SET
                 setor = ?, situacao = ?, tempo_solucao = ?,
-                impacto_reais = ?, status = ?, observacao = ?,
+                impacto_reais = ?, status = ?, codigo_item = ?, observacao = ?,
                 atualizado_em = ?
             WHERE id = ?
             """,
@@ -81,12 +80,16 @@ def atualizar(tratativa_id: int, dados: dict) -> bool:
                 dados.get("tempo_solucao"),
                 dados.get("impacto_reais"),
                 dados["status"],
+                dados.get("codigo_item"),
                 dados.get("observacao"),
                 agora,
                 tratativa_id,
             ),
         )
-        return cur.rowcount > 0
+        ok = cur.rowcount > 0
+    if ok:
+        marcar_atualizacao()
+    return ok
 
 
 def excluir(tratativa_id: int) -> bool:
@@ -95,7 +98,10 @@ def excluir(tratativa_id: int) -> bool:
             "UPDATE vendas SET id_perda = NULL WHERE id_perda = ?", (tratativa_id,)
         )
         cur = conn.execute("DELETE FROM tratativas WHERE id = ?", (tratativa_id,))
-        return cur.rowcount > 0
+        ok = cur.rowcount > 0
+    if ok:
+        marcar_atualizacao()
+    return ok
 
 
 def metricas():

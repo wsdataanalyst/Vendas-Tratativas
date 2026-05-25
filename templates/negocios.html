@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Negócios — Vendas & Tratativas{% endblock %}
+{% block content %}
+<header class="page-header">
+  <div>
+    <h1>Negócios</h1>
+    <p class="subtitle">Registre oportunidades em acompanhamento que podem virar venda. Ao marcar como <strong>Perdido</strong>, vincule a tratativa interna ou informe concorrência (sem ID de tratativa).</p>
+  </div>
+  <button type="button" class="btn btn-primary" data-open="modal-novo-negocio">+ Novo negócio</button>
+</header>
+
+{% if em_acompanhamento %}
+<section class="destaque-section" id="em-acompanhamento">
+  <div class="destaque-header">
+    <h2>Em acompanhamento</h2>
+    <span class="count-badge">{{ em_acompanhamento|length }}</span>
+  </div>
+  <div class="cards-grid">
+    {% for n in em_acompanhamento %}
+    <article class="venda-card card">
+      <div class="card-head">
+        <span class="badge-id">{{ n.referencia }}</span>
+        <time>{{ formatar_data(n.data_registro) }}</time>
+      </div>
+      <p class="venda-valor">{{ moeda(n.valor) }}</p>
+      {% if n.cliente %}<p class="card-obs">{{ n.cliente }}{% if n.vendedor %} — {{ n.vendedor }}{% endif %}</p>{% endif %}
+      <div class="card-foot">
+        <span class="status-pill">{{ n.status }}</span>
+        <button type="button" class="btn btn-ghost btn-sm btn-edit-negocio" data-item='{{ n | tojson }}'>Editar</button>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+<hr class="section-divider">
+{% endif %}
+
+<h2 class="section-label">Todos os negócios</h2>
+<section class="cards-grid vendas-grid">
+  {% for n in itens %}
+  <article class="venda-card card {% if n.status == 'Convertido' %}convertida{% elif n.status == 'Perdido' %}perdida{% endif %} {% if n.status == 'Perdido' and n.motivo_perda == 'tratativa' and not n.id_tratativa %}sem-vinculo{% endif %}">
+    <div class="card-head">
+      <span class="badge-id">{{ n.referencia }}</span>
+      <time>{{ formatar_data(n.data_registro) }}</time>
+    </div>
+    <p class="venda-valor">{{ moeda(n.valor) }}</p>
+    <div class="card-foot">
+      <span class="status-pill {% if n.status == 'Convertido' %}ok{% elif n.status == 'Perdido' %}warn{% endif %}">{{ n.status }}</span>
+      {% if n.status == 'Perdido' %}
+        {% if n.motivo_perda == 'tratativa' and n.id_tratativa %}
+        <span class="badge-link">Tratativa #{{ n.id_tratativa }}</span>
+        {% elif n.motivo_perda == 'concorrencia' %}
+        <span class="badge-link">Concorrência</span>
+        {% endif %}
+      {% endif %}
+      <div class="card-actions">
+        <button type="button" class="btn btn-ghost btn-sm btn-edit-negocio" data-item='{{ n | tojson }}'>Editar</button>
+        <form method="post" action="{{ url_for('negocio_excluir', nid=n.id) }}" class="inline" onsubmit="return confirm('Excluir este registro?')">
+          <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
+        </form>
+      </div>
+    </div>
+    {% if n.status == 'Perdido' and n.motivo_perda == 'concorrencia' and n.concorrencia %}
+    <p class="card-obs">{{ n.concorrencia }}</p>
+    {% elif n.tratativa_situacao %}
+    <p class="card-obs">{{ n.tratativa_setor }} — {{ n.tratativa_situacao }}</p>
+    {% endif %}
+  </article>
+  {% else %}
+  <div class="empty-state card span-all">
+    <p>Nenhum negócio registrado.</p>
+    <button type="button" class="btn btn-primary" data-open="modal-novo-negocio">Registrar primeiro negócio</button>
+  </div>
+  {% endfor %}
+</section>
+
+<dialog id="modal-novo-negocio" class="modal">
+  <form method="post" action="{{ url_for('negocio_nova') }}" class="form modal-form form-negocio">
+    <h2>Novo negócio</h2>
+    <p class="form-hint">Oportunidade em acompanhamento — pode ser convertida em venda depois.</p>
+    <div class="form-grid">
+      <label>Referência / código *
+        <input type="text" name="referencia" required placeholder="Ex.: Proposta 4521, Cliente X">
+      </label>
+      <label>Valor estimado (R$) *
+        <input type="number" name="valor" step="0.01" min="0" required>
+      </label>
+      <label>Cliente
+        <input type="text" name="cliente" placeholder="Nome do cliente">
+      </label>
+      <label>Vendedor
+        <input type="text" name="vendedor" placeholder="Nome do vendedor">
+      </label>
+      <label>Status *
+        <select name="status" class="sel-status-negocio" required>
+          {% for s in status_opts %}
+          <option value="{{ s }}" {% if s == 'Em acompanhamento' %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      {% include '_campos_perda.html' %}
+      <label class="span-2">Observação
+        <textarea name="observacao" rows="2"></textarea>
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" data-close>Cancelar</button>
+      <button type="submit" class="btn btn-primary">Salvar</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="modal-editar-negocio" class="modal">
+  <form method="post" action="" class="form modal-form form-negocio" id="form-editar-negocio">
+    <h2>Editar negócio</h2>
+    <div class="form-grid">
+      <label>Referência *
+        <input type="text" name="referencia" id="edit-ref" required>
+      </label>
+      <label>Valor (R$) *
+        <input type="number" name="valor" id="edit-valor-neg" step="0.01" min="0" required>
+      </label>
+      <label>Cliente
+        <input type="text" name="cliente" id="edit-cliente">
+      </label>
+      <label>Vendedor
+        <input type="text" name="vendedor" id="edit-vendedor">
+      </label>
+      <label>Status *
+        <select name="status" id="edit-status-neg" class="sel-status-negocio" required>
+          {% for s in status_opts %}
+          <option value="{{ s }}">{{ s }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      {% include '_campos_perda.html' %}
+      <label class="span-2">Observação
+        <textarea name="observacao" id="edit-obs-neg" rows="2"></textarea>
+      </label>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-ghost" data-close>Cancelar</button>
+      <button type="submit" class="btn btn-primary">Atualizar</button>
+    </div>
+  </form>
+</dialog>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.querySelectorAll('.btn-edit-negocio').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const n = JSON.parse(btn.dataset.item);
+      const form = document.getElementById('form-editar-negocio');
+      form.action = `/negocios/${n.id}/editar`;
+      document.getElementById('edit-ref').value = n.referencia || '';
+      document.getElementById('edit-valor-neg').value = n.valor;
+      document.getElementById('edit-cliente').value = n.cliente || '';
+      document.getElementById('edit-vendedor').value = n.vendedor || '';
+      document.getElementById('edit-status-neg').value = n.status || 'Em acompanhamento';
+      document.getElementById('edit-obs-neg').value = n.observacao || '';
+      const motivo = form.querySelector(`input[name="motivo_perda"][value="${n.motivo_perda || 'tratativa'}"]`);
+      if (motivo) motivo.checked = true;
+      const selTrat = form.querySelector('.sel-id-tratativa');
+      if (selTrat) selTrat.value = n.id_tratativa || '';
+      const conc = form.querySelector('.inp-concorrencia');
+      if (conc) conc.value = n.concorrencia || '';
+      if (window.atualizarCamposPerda) window.atualizarCamposPerda(form);
+      document.getElementById('modal-editar-negocio').showModal();
+    });
+  });
+</script>
+{% endblock %}

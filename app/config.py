@@ -105,7 +105,11 @@ SITUACOES = [
     "Prazo de cotação Fabrica",
     "Entrega não realizada",
     "Estornos e Ressarcimentos",
+    "Falta de estoque produto indispensavel",
 ]
+
+# Situações que exigem informar o código do item
+SITUACOES_COM_CODIGO_ITEM = ("Falta de estoque produto indispensavel",)
 
 TEMPOS_SOLUCAO = [
     "> 30 min",
@@ -126,3 +130,15 @@ STATUS_TRATATIVA = [
 ]
 
 STATUS_EM_ABERTO = ("Em andamento", "Em andamento c/impacto", "Sem resposta")
+
+STATUS_NEGOCIO = [
+    "Em acompanhamento",
+    "Convertido",
+    "Perdido",
+]
+
+MOTIVOS_PERDA = [
+    ("tratativa", "Problema interno (Tratativa)"),
+    ("concorrencia", "Concorrência (preço/outro)"),
+    ("outro", "Outro motivo"),
+]

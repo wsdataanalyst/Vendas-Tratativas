@@ -24,6 +24,9 @@
         <time>{{ t.data_registro[:16] }}</time>
       </div>
       <h3 class="card-situacao">{{ t.situacao }}</h3>
+      {% if t.codigo_item %}
+      <p class="card-codigo-item">Código item: <strong>{{ t.codigo_item }}</strong></p>
+      {% endif %}
       <div class="card-foot">
         <span class="status-pill">{{ t.status }}</span>
         {% if t.impacto_reais %}<span class="impact">{{ moeda(t.impacto_reais) }}</span>{% endif %}
@@ -94,7 +97,7 @@
 </section>
 
 <dialog id="modal-nova-tratativa" class="modal">
-  <form method="post" action="{{ url_for('tratativa_nova') }}" class="form modal-form">
+  <form method="post" action="{{ url_for('tratativa_nova') }}" class="form modal-form form-tratativa">
     <h2>Nova tratativa</h2>
     <p class="form-hint">Data e ID são gerados automaticamente no registro.</p>
     <div class="form-grid">
@@ -105,10 +108,15 @@
         </select>
       </label>
       <label>Situação *
-        <select name="situacao" required>
+        <select name="situacao" class="sel-situacao" required>
           <option value="">Selecione</option>
           {% for s in situacoes %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
         </select>
+      </label>
+      <label class="span-2 campo-codigo-item" style="display:none">
+        Código do item *
+        <input type="text" name="codigo_item" class="inp-codigo-item" placeholder="Ex.: 12345">
+        <span class="field-hint">Obrigatório para falta de estoque de produto indispensável.</span>
       </label>
       <label>Tempo de solução
         <select name="tempo_solucao">
@@ -137,7 +145,7 @@
 </dialog>
 
 <dialog id="modal-editar-tratativa" class="modal">
-  <form method="post" action="" class="form modal-form" id="form-editar-tratativa">
+  <form method="post" action="" class="form modal-form form-tratativa" id="form-editar-tratativa">
     <h2>Editar tratativa <span id="edit-id-label"></span></h2>
     <div class="form-grid">
       <label>Setor *
@@ -146,9 +154,13 @@
         </select>
       </label>
       <label>Situação *
-        <select name="situacao" id="edit-situacao" required>
+        <select name="situacao" id="edit-situacao" class="sel-situacao" required>
           {% for s in situacoes %}<option value="{{ s }}">{{ s }}</option>{% endfor %}
         </select>
+      </label>
+      <label class="span-2 campo-codigo-item" style="display:none">
+        Código do item *
+        <input type="text" name="codigo_item" id="edit-codigo-item" class="inp-codigo-item" placeholder="Ex.: 12345">
       </label>
       <label>Tempo de solução
         <select name="tempo_solucao" id="edit-tempo">
@@ -178,6 +190,8 @@
 
 {% block scripts %}
 <script>
+  window.SITUACOES_CODIGO_ITEM = {{ situacoes_codigo_item | tojson }};
+
   document.querySelectorAll('.btn-edit-tratativa').forEach(btn => {
     btn.addEventListener('click', () => {
       const t = JSON.parse(btn.dataset.item);
@@ -190,6 +204,8 @@
       document.getElementById('edit-impacto').value = t.impacto_reais ?? '';
       document.getElementById('edit-status').value = t.status;
       document.getElementById('edit-obs').value = t.observacao || '';
+      document.getElementById('edit-codigo-item').value = t.codigo_item || '';
+      if (window.atualizarCampoCodigoItem) window.atualizarCampoCodigoItem(form);
       document.getElementById('modal-editar-tratativa').showModal();
     });
   });
