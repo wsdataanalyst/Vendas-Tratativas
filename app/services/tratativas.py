@@ -24,9 +24,17 @@ def listar(
     filtro_setor: str | None = None,
     apenas_resolvidas: bool = False,
     registrado_por: str | None = None,
+    busca_id: int | None = None,
+    busca_orcamento: str | None = None,
 ):
     sql = "SELECT * FROM tratativas WHERE 1=1"
     params: list = []
+    if busca_id is not None:
+        sql += " AND id = ?"
+        params.append(busca_id)
+    if busca_orcamento:
+        sql += " AND numero_orcamento LIKE ?"
+        params.append(f"%{busca_orcamento}%")
     if filtro_status:
         sql += " AND status = ?"
         params.append(filtro_status)

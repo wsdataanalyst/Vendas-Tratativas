@@ -11,7 +11,7 @@
   <button type="button" class="btn btn-primary" data-open="modal-nova-tratativa">+ Nova tratativa</button>
 </header>
 
-{% if em_aberto and not filtro_status and not filtro_setor %}
+{% if em_aberto and not filtro_status and not filtro_setor and not busca_ativa %}
 <section class="destaque-section" id="em-aberto">
   <div class="destaque-header">
     <h2>Em aberto — atenção imediata</h2>
@@ -41,9 +41,18 @@
 {% endif %}
 
 <form class="filters card" method="get">
+  {% if operador_filtro %}<input type="hidden" name="operador" value="{{ operador_filtro }}">{% endif %}
+  <label class="filtro-busca">
+    ID da tratativa
+    <input type="number" name="id" min="1" placeholder="Ex.: 42" value="{{ busca_id or '' }}">
+  </label>
+  <label class="filtro-busca">
+    Nº orçamento
+    <input type="text" name="orcamento" placeholder="Número ou parte dele" value="{{ busca_orcamento or '' }}">
+  </label>
   <label>
     Setor
-    <select name="setor" onchange="this.form.submit()">
+    <select name="setor">
       <option value="">Todos</option>
       {% for s in setores %}
       <option value="{{ s }}" {% if filtro_setor == s %}selected{% endif %}>{{ s }}</option>
@@ -52,17 +61,31 @@
   </label>
   <label>
     Status
-    <select name="status" onchange="this.form.submit()">
+    <select name="status">
       <option value="">Todos</option>
       {% for st in status_opts %}
       <option value="{{ st }}" {% if filtro_status == st %}selected{% endif %}>{{ st }}</option>
       {% endfor %}
     </select>
   </label>
-  {% if filtro_setor or filtro_status %}
-  <a href="{{ url_for('tratativas_lista') }}" class="btn btn-ghost btn-sm">Limpar filtros</a>
+  <button type="submit" class="btn btn-primary btn-sm">Buscar</button>
+  {% if filtro_setor or filtro_status or busca_ativa %}
+  <a href="{{ url_for('tratativas_lista', operador=operador_filtro) if operador_filtro else url_for('tratativas_lista') }}" class="btn btn-ghost btn-sm">Limpar</a>
   {% endif %}
 </form>
+
+{% if busca_ativa %}
+<p class="busca-resultado">
+  {% if itens|length %}
+  {{ itens|length }} resultado(s) para
+  {% if busca_id %}ID <strong>#{{ busca_id }}</strong>{% endif %}
+  {% if busca_id and busca_orcamento %} · {% endif %}
+  {% if busca_orcamento %}orçamento <strong>{{ busca_orcamento }}</strong>{% endif %}
+  {% else %}
+  Nenhuma tratativa encontrada para essa busca.
+  {% endif %}
+</p>
+{% endif %}
 
 <section class="cards-grid">
   {% for t in itens %}

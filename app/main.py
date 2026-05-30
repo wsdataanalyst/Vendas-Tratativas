@@ -328,10 +328,22 @@ def create_app() -> Flask:
         op = _escopo_operador()
         status = request.args.get("status") or None
         setor = request.args.get("setor") or None
+        busca_id_raw = (request.args.get("id") or "").strip()
+        busca_orcamento = (request.args.get("orcamento") or "").strip() or None
+        busca_id = None
+        if busca_id_raw.isdigit():
+            busca_id = int(busca_id_raw)
+        busca_ativa = busca_id is not None or bool(busca_orcamento)
         itens = svc_tratativas.listar(
-            filtro_status=status, filtro_setor=setor, registrado_por=op
+            filtro_status=status,
+            filtro_setor=setor,
+            registrado_por=op,
+            busca_id=busca_id,
+            busca_orcamento=busca_orcamento,
         )
-        em_aberto = svc_tratativas.listar_em_aberto(registrado_por=op)
+        em_aberto = (
+            [] if busca_ativa else svc_tratativas.listar_em_aberto(registrado_por=op)
+        )
         resolvidas = svc_tratativas.listar(apenas_resolvidas=True, registrado_por=op)
         vendas_trat = {
             v["id_tratativa"]: v for v in svc_vtrat.listar(registrado_por=op)
@@ -352,6 +364,9 @@ def create_app() -> Flask:
             status_resolvidos=config.STATUS_TRATATIVA_RESOLVIDA,
             filtro_status=status,
             filtro_setor=setor,
+            busca_id=busca_id_raw or None,
+            busca_orcamento=busca_orcamento,
+            busca_ativa=busca_ativa,
             operador_filtro=op,
             operadores=auth.listar_operadores(),
             is_gestor=_usuario_sessao().get("is_gestor"),
