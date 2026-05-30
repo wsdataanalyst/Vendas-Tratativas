@@ -1,6 +1,8 @@
 {% extends "base.html" %}
 {% block title %}Tratativas — Vendas & Tratativas{% endblock %}
 {% block content %}
+{% from "_filtro_operador.html" import filtro_operador %}
+{{ filtro_operador('tratativas_lista') }}
 <header class="page-header">
   <div>
     <h1>Tratativas</h1>

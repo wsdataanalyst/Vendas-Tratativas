@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Painel Gestor — Vendas & Tratativas{% endblock %}
+{% block content %}
+
+<section class="welcome-banner card">
+  <div class="welcome-text">
+    <h1>{{ titulo_boas_vindas }}</h1>
+    <p class="subtitle">{{ subtitulo_boas_vindas }}</p>
+  </div>
+  <span class="badge-gestor">Gestor</span>
+</section>
+
+{% set c = consolidado %}
+{% set mp = c.perf %}
+{% set mv = c.vtrat %}
+{% set mt = c.trat %}
+
+<section class="section-consolidado">
+  <h2 class="section-title">Visão geral — consolidado (Mayara + Alessandro)</h2>
+  <section class="kpi-grid kpi-grid-4">
+    <article class="kpi-card card kpi-destaque">
+      <span class="kpi-label">Total vendas (R$)</span>
+      <span class="kpi-value kpi-valor">{{ moeda(mp.valor_vendas_todas) }}</span>
+      <span class="kpi-meta">Performance {{ moeda(mp.valor_realizado) }} + Tratativa {{ moeda(mv.valor_total) }}</span>
+    </article>
+    <article class="kpi-card card kpi-performance">
+      <span class="kpi-label">Performance realizadas</span>
+      <span class="kpi-value">{{ mp.realizadas }}</span>
+      <span class="kpi-meta">{{ mp.em_andamento }} andamento · {{ mp.perdidos }} perdidos</span>
+      <span class="kpi-sub">Taxa {{ mp.taxa_conversao }}%</span>
+    </article>
+    <article class="kpi-card card kpi-tratativa">
+      <span class="kpi-label">Vendas via tratativa</span>
+      <span class="kpi-value">{{ mv.total }}</span>
+      <span class="kpi-meta">{{ mv.sem_impacto }} s/ impacto · {{ mv.com_impacto }} c/ impacto</span>
+    </article>
+    <article class="kpi-card card accent-warn">
+      <span class="kpi-label">Tratativas</span>
+      <span class="kpi-value">{{ mt.em_andamento }}</span>
+      <span class="kpi-meta">em aberto · {{ mt.resolvidas }} resolvidas</span>
+      <span class="kpi-sub">Impacto {{ moeda(mt.impacto_total) }}</span>
+    </article>
+  </section>
+
+  <div class="card resumo-consolidado">
+    <h3 class="card-title">Indicadores consolidados</h3>
+    <ul class="resumo-list resumo-grid">
+      <li><span>Registros Performance</span><strong>{{ mp.total }}</strong></li>
+      <li><span>Valor pipeline Performance</span><strong>{{ moeda(mp.valor_total) }}</strong></li>
+      <li><span>Valor Performance realizado</span><strong class="ok-text">{{ moeda(mp.valor_realizado) }}</strong></li>
+      <li><span>Valor via tratativa (sem impacto)</span><strong>{{ moeda(mv.valor_sem_impacto) }}</strong></li>
+      <li><span>Valor via tratativa (com impacto)</span><strong class="warn-text">{{ moeda(mv.valor_com_impacto) }}</strong></li>
+      <li><span>Total tratativas registradas</span><strong>{{ mt.total }}</strong></li>
+    </ul>
+  </div>
+</section>
+
+{% for op_id, dados in por_operador.items() %}
+<section class="section-operador">
+  <div class="operador-header">
+    <h2 class="section-title">{{ dados.nome }}</h2>
+    <div class="operador-links">
+      <a href="{{ url_for('vendas_performance_lista', operador=op_id) }}" class="btn btn-ghost btn-sm">Performance</a>
+      <a href="{{ url_for('tratativas_lista', operador=op_id) }}" class="btn btn-ghost btn-sm">Tratativas</a>
+    </div>
+  </div>
+  {% set p = dados.perf %}
+  {% set v = dados.vtrat %}
+  {% set t = dados.trat %}
+  <section class="kpi-grid kpi-grid-3">
+    <article class="kpi-card card">
+      <span class="kpi-label">Performance</span>
+      <span class="kpi-value">{{ p.realizadas }}</span>
+      <span class="kpi-meta">{{ p.em_andamento }} andamento · taxa {{ p.taxa_conversao }}%</span>
+      <span class="kpi-sub">{{ moeda(p.valor_realizado) }} realizado</span>
+    </article>
+    <article class="kpi-card card">
+      <span class="kpi-label">Via tratativa</span>
+      <span class="kpi-value">{{ v.total }}</span>
+      <span class="kpi-meta">{{ v.sem_impacto }} s/ · {{ v.com_impacto }} c/ impacto</span>
+      <span class="kpi-sub">{{ moeda(v.valor_total) }}</span>
+    </article>
+    <article class="kpi-card card">
+      <span class="kpi-label">Tratativas abertas</span>
+      <span class="kpi-value">{{ t.em_andamento }}</span>
+      <span class="kpi-meta">{{ t.total }} total · {{ t.resolvidas }} resolvidas</span>
+    </article>
+  </section>
+</section>
+{% endfor %}
+
+{% endblock %}

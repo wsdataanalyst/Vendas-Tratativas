@@ -19,18 +19,26 @@ def _resultado_de_status(status_tratativa: str) -> str:
     return RESULTADO_SEM_IMPACTO
 
 
-def listar():
+def _filtro_op(registrado_por: str | None, alias: str = "v") -> tuple[str, list]:
+    if registrado_por:
+        prefix = f"{alias}." if alias else ""
+        return f" AND {prefix}registrado_por = ?", [registrado_por]
+    return "", []
+
+
+def listar(registrado_por: str | None = None):
+    extra, params = _filtro_op(registrado_por)
     with get_db() as conn:
         rows = conn.execute(
-            """
+            f"""
             SELECT v.*, t.setor as tratativa_setor, t.situacao as tratativa_situacao,
                    t.status as tratativa_status, t.numero_orcamento as tratativa_orcamento
             FROM vendas v
             JOIN tratativas t ON v.id_tratativa = t.id
-            WHERE v.tipo = ?
+            WHERE v.tipo = ?{extra}
             ORDER BY v.id DESC
             """,
-            (_TIPO,),
+            [_TIPO, *params],
         ).fetchall()
     return [dict(r) for r in rows]
 
@@ -55,9 +63,9 @@ def criar(dados: dict, status_tratativa: str) -> int:
             """
             INSERT INTO vendas (
                 data_registro, tipo, pedido, valor, status_venda, convertido,
-                id_perda, id_tratativa, resultado_tratativa, observacao,
-                criado_em, atualizado_em
-            ) VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?)
+                id_perda, id_tratativa, resultado_tratativa, registrado_por,
+                observacao, criado_em, atualizado_em
+            ) VALUES (?, ?, ?, ?, ?, 1, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 dados.get("data_registro") or agora,
@@ -68,6 +76,7 @@ def criar(dados: dict, status_tratativa: str) -> int:
                 tid,
                 tid,
                 resultado,
+                dados.get("registrado_por"),
                 dados.get("observacao"),
                 agora,
                 agora,
@@ -118,41 +127,28 @@ def excluir(venda_id: int) -> bool:
     return ok
 
 
-def metricas():
+def metricas(registrado_por: str | None = None):
+    extra, params = _filtro_op(registrado_por, alias="")
+    base = f"FROM vendas WHERE tipo = ?{extra}"
+    p = [_TIPO, *params]
     with get_db() as conn:
-        total = conn.execute(
-            "SELECT COUNT(*) FROM vendas WHERE tipo = ?", (_TIPO,)
-        ).fetchone()[0]
+        total = conn.execute(f"SELECT COUNT(*) {base}", p).fetchone()[0]
         sem_impacto = conn.execute(
-            """
-            SELECT COUNT(*) FROM vendas
-            WHERE tipo = ? AND resultado_tratativa = ?
-            """,
-            (_TIPO, RESULTADO_SEM_IMPACTO),
+            f"SELECT COUNT(*) {base} AND resultado_tratativa = ?", [*p, RESULTADO_SEM_IMPACTO]
         ).fetchone()[0]
         com_impacto = conn.execute(
-            """
-            SELECT COUNT(*) FROM vendas
-            WHERE tipo = ? AND resultado_tratativa = ?
-            """,
-            (_TIPO, RESULTADO_COM_IMPACTO),
+            f"SELECT COUNT(*) {base} AND resultado_tratativa = ?", [*p, RESULTADO_COM_IMPACTO]
         ).fetchone()[0]
         valor_total = conn.execute(
-            "SELECT COALESCE(SUM(valor), 0) FROM vendas WHERE tipo = ?", (_TIPO,)
+            f"SELECT COALESCE(SUM(valor), 0) {base}", p
         ).fetchone()[0]
         valor_sem = conn.execute(
-            """
-            SELECT COALESCE(SUM(valor), 0) FROM vendas
-            WHERE tipo = ? AND resultado_tratativa = ?
-            """,
-            (_TIPO, RESULTADO_SEM_IMPACTO),
+            f"SELECT COALESCE(SUM(valor), 0) {base} AND resultado_tratativa = ?",
+            [*p, RESULTADO_SEM_IMPACTO],
         ).fetchone()[0]
         valor_com = conn.execute(
-            """
-            SELECT COALESCE(SUM(valor), 0) FROM vendas
-            WHERE tipo = ? AND resultado_tratativa = ?
-            """,
-            (_TIPO, RESULTADO_COM_IMPACTO),
+            f"SELECT COALESCE(SUM(valor), 0) {base} AND resultado_tratativa = ?",
+            [*p, RESULTADO_COM_IMPACTO],
         ).fetchone()[0]
     return {
         "total": total,

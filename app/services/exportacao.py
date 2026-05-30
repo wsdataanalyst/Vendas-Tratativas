@@ -6,6 +6,8 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
+from app import auth
+from app.services import metricas_gestor as svc_mgestor
 from app.services import tratativas as svc_tratativas
 from app.services import vendas_performance as svc_perf
 from app.services import vendas_tratativa as svc_vtrat
@@ -31,9 +33,11 @@ def gerar_excel() -> tuple[BytesIO, str]:
     tratativas = svc_tratativas.listar()
     perf = svc_perf.listar()
     vtrat = svc_vtrat.listar()
-    m_trat = svc_tratativas.metricas()
-    m_perf = svc_perf.metricas()
-    m_vtrat = svc_vtrat.metricas()
+    painel = svc_mgestor.painel_gestor()
+    c = painel["consolidado"]
+    m_perf = c["perf"]
+    m_vtrat = c["vtrat"]
+    m_trat = c["trat"]
 
     wb = Workbook()
 
@@ -41,6 +45,7 @@ def gerar_excel() -> tuple[BytesIO, str]:
     ws_perf.title = "Vendas Performance"
     cab_perf = [
         "Data",
+        "Operador",
         "Pedido",
         "Cliente",
         "Vendedor",
@@ -56,6 +61,7 @@ def gerar_excel() -> tuple[BytesIO, str]:
         ws_perf.append(
             [
                 v.get("data_registro", ""),
+                auth.nome_operador(v.get("registrado_por")),
                 v.get("pedido", ""),
                 v.get("cliente") or "",
                 v.get("vendedor") or "",
@@ -66,7 +72,7 @@ def gerar_excel() -> tuple[BytesIO, str]:
                 v.get("observacao") or "",
             ]
         )
-    _ajustar_larguras(ws_perf, [18, 14, 16, 14, 12, 18, 14, 22, 28])
+    _ajustar_larguras(ws_perf, [18, 16, 14, 16, 14, 12, 18, 14, 22, 28])
 
     ws_vtrat = wb.create_sheet("Vendas Tratativa")
     cab_vt = [
@@ -107,6 +113,7 @@ def gerar_excel() -> tuple[BytesIO, str]:
     cab_trat = [
         "Data",
         "ID",
+        "Operador",
         "Nº Orçamento",
         "Setor",
         "Situação",
@@ -123,6 +130,7 @@ def gerar_excel() -> tuple[BytesIO, str]:
             [
                 t.get("data_registro", ""),
                 t.get("id"),
+                auth.nome_operador(t.get("registrado_por")),
                 t.get("numero_orcamento") or "",
                 t.get("setor", ""),
                 t.get("situacao", ""),
@@ -133,7 +141,7 @@ def gerar_excel() -> tuple[BytesIO, str]:
                 t.get("observacao") or "",
             ]
         )
-    _ajustar_larguras(ws_trat, [18, 6, 14, 14, 38, 12, 14, 12, 22, 30])
+    _ajustar_larguras(ws_trat, [18, 6, 16, 14, 14, 38, 12, 14, 12, 22, 30])
 
     ws_resumo = wb.create_sheet("Resumo", 0)
     ws_resumo.append(["Vendas & Tratativas — Exportação"])
@@ -145,8 +153,14 @@ def gerar_excel() -> tuple[BytesIO, str]:
     ws_resumo.append(["Realizadas", m_perf["realizadas"]])
     ws_resumo.append(["Em andamento", m_perf["em_andamento"]])
     ws_resumo.append(["Perdidos", m_perf["perdidos"]])
-    ws_resumo.append(["Taxa (%)", m_perf["taxa_conversao"]])
+    ws_resumo.append(["Total vendas R$ (Performance + Tratativa)", m_perf["valor_vendas_todas"]])
     ws_resumo.append([])
+    for op_id, dados in painel["por_operador"].items():
+        ws_resumo.append([dados["nome"]])
+        ws_resumo.append(["  Performance realizadas", dados["perf"]["realizadas"]])
+        ws_resumo.append(["  Via tratativa", dados["vtrat"]["total"]])
+        ws_resumo.append(["  Tratativas abertas", dados["trat"]["em_andamento"]])
+        ws_resumo.append([])
     ws_resumo.append(["Vendas via tratativa"])
     ws_resumo.append(["Total convertidas", m_vtrat["total"]])
     ws_resumo.append(["Sem impacto", m_vtrat["sem_impacto"]])

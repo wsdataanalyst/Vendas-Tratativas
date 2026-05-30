@@ -8,24 +8,33 @@ from app.utils.realtime import marcar_atualizacao
 _TIPO = TIPO_VENDA_PERFORMANCE
 
 
-def listar(filtro_status: str | None = None):
-    sql = f"SELECT * FROM vendas WHERE tipo = ?"
+def _filtro_op(registrado_por: str | None) -> tuple[str, list]:
+    if registrado_por:
+        return " AND registrado_por = ?", [registrado_por]
+    return "", []
+
+
+def listar(filtro_status: str | None = None, registrado_por: str | None = None):
+    sql = "SELECT * FROM vendas WHERE tipo = ?"
     params: list = [_TIPO]
     if filtro_status:
         sql += " AND status_venda = ?"
         params.append(filtro_status)
+    extra, extra_p = _filtro_op(registrado_por)
+    sql += extra
+    params.extend(extra_p)
     sql += " ORDER BY id DESC"
     with get_db() as conn:
         rows = conn.execute(sql, params).fetchall()
     return [dict(r) for r in rows]
 
 
-def listar_em_andamento():
-    return listar(filtro_status="Em andamento")
+def listar_em_andamento(registrado_por: str | None = None):
+    return listar(filtro_status="Em andamento", registrado_por=registrado_por)
 
 
-def listar_perdidos():
-    return listar(filtro_status="Negócio perdido")
+def listar_perdidos(registrado_por: str | None = None):
+    return listar(filtro_status="Negócio perdido", registrado_por=registrado_por)
 
 
 def criar(dados: dict) -> int:
@@ -37,8 +46,8 @@ def criar(dados: dict) -> int:
             INSERT INTO vendas (
                 data_registro, tipo, pedido, valor, status_venda, previsao_data,
                 cliente, vendedor, convertido, motivo_perda, concorrencia,
-                observacao, criado_em, atualizado_em
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                registrado_por, observacao, criado_em, atualizado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 dados.get("data_registro") or agora,
@@ -52,6 +61,7 @@ def criar(dados: dict) -> int:
                 1 if status == "Venda Realizada" else 0,
                 dados.get("motivo_perda"),
                 dados.get("concorrencia"),
+                dados.get("registrado_por"),
                 dados.get("observacao"),
                 agora,
                 agora,
@@ -107,32 +117,27 @@ def excluir(venda_id: int) -> bool:
     return ok
 
 
-def metricas():
+def metricas(registrado_por: str | None = None):
+    extra, params = _filtro_op(registrado_por)
+    base = f"FROM vendas WHERE tipo = ?{extra}"
+    p = [_TIPO, *params]
     with get_db() as conn:
-        total = conn.execute(
-            "SELECT COUNT(*) FROM vendas WHERE tipo = ?", (_TIPO,)
-        ).fetchone()[0]
+        total = conn.execute(f"SELECT COUNT(*) {base}", p).fetchone()[0]
         realizadas = conn.execute(
-            "SELECT COUNT(*) FROM vendas WHERE tipo = ? AND status_venda = ?",
-            (_TIPO, "Venda Realizada"),
+            f"SELECT COUNT(*) {base} AND status_venda = 'Venda Realizada'", p
         ).fetchone()[0]
         em_andamento = conn.execute(
-            "SELECT COUNT(*) FROM vendas WHERE tipo = ? AND status_venda = ?",
-            (_TIPO, "Em andamento"),
+            f"SELECT COUNT(*) {base} AND status_venda = 'Em andamento'", p
         ).fetchone()[0]
         perdidos = conn.execute(
-            "SELECT COUNT(*) FROM vendas WHERE tipo = ? AND status_venda = ?",
-            (_TIPO, "Negócio perdido"),
+            f"SELECT COUNT(*) {base} AND status_venda = 'Negócio perdido'", p
         ).fetchone()[0]
         valor_total = conn.execute(
-            "SELECT COALESCE(SUM(valor), 0) FROM vendas WHERE tipo = ?", (_TIPO,)
+            f"SELECT COALESCE(SUM(valor), 0) {base}", p
         ).fetchone()[0]
         valor_realizado = conn.execute(
-            """
-            SELECT COALESCE(SUM(valor), 0) FROM vendas
-            WHERE tipo = ? AND status_venda = 'Venda Realizada'
-            """,
-            (_TIPO,),
+            f"SELECT COALESCE(SUM(valor), 0) {base} AND status_venda = 'Venda Realizada'",
+            p,
         ).fetchone()[0]
     taxa = (realizadas / total * 100) if total else 0
     return {

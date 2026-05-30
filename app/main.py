@@ -16,6 +16,7 @@ from flask import (
 from app import auth, config
 from app.database import backup_database, export_json_snapshot, init_db
 from app.services import exportacao as svc_exportacao
+from app.services import metricas_gestor as svc_mgestor
 from app.services import tratativas as svc_tratativas
 from app.services import vendas_performance as svc_perf
 from app.services import vendas_tratativa as svc_vtrat
@@ -57,10 +58,30 @@ def create_app() -> Flask:
             print(f"[ERRO BANCO] {exc}", file=sys.stderr, flush=True)
             return False
 
+    def _usuario_sessao() -> dict:
+        return session.get("usuario") or {}
+
+    def _escopo_operador() -> str | None:
+        """None = todos (gestor). ID = filtrar por operador."""
+        u = _usuario_sessao()
+        if u.get("is_gestor"):
+            op = request.args.get("operador", "").strip()
+            if op in auth.OPERADORES_IDS:
+                return op
+            return None
+        return u.get("id")
+
+    def _registrado_por_atual() -> str:
+        return _usuario_sessao().get("id", "mayara")
+
     def _contagens():
         def factory():
-            m_trat = svc_tratativas.metricas()
-            m_perf = svc_perf.metricas()
+            op = None
+            u = session.get("usuario") or {}
+            if not u.get("is_gestor"):
+                op = u.get("id")
+            m_trat = svc_tratativas.metricas(registrado_por=op)
+            m_perf = svc_perf.metricas(registrado_por=op)
             return {
                 "tratativas_abertas": m_trat.get("em_andamento", 0),
                 "performance_em_andamento": m_perf.get("em_andamento", 0),
@@ -145,7 +166,7 @@ def create_app() -> Flask:
                 session["usuario"] = dados
                 return redirect(url_for("dashboard"))
             flash("Usuário ou senha incorretos.", "erro")
-        return render_template("login.html", usuarios=auth.USUARIOS)
+        return render_template("login.html", operadores=auth.listar_operadores())
 
     @app.route("/logout")
     def logout():
@@ -166,12 +187,24 @@ def create_app() -> Flask:
     @app.route("/")
     @login_required
     def dashboard():
-        m_trat = svc_tratativas.metricas()
-        m_perf = svc_perf.metricas()
-        m_vtrat = svc_vtrat.metricas()
-        em_aberto = svc_tratativas.listar_em_aberto()
-        perf_andamento = svc_perf.listar_em_andamento()
-        u = session.get("usuario", {})
+        u = _usuario_sessao()
+        op = _escopo_operador()
+        if u.get("is_gestor") and not op:
+            painel = svc_mgestor.painel_gestor()
+            return render_template(
+                "dashboard_gestor.html",
+                consolidado=painel["consolidado"],
+                por_operador=painel["por_operador"],
+                operadores=auth.listar_operadores(),
+                agora=agora(),
+                titulo_boas_vindas=u.get("titulo_boas_vindas"),
+                subtitulo_boas_vindas=u.get("subtitulo_boas_vindas"),
+            )
+        m_trat = svc_tratativas.metricas(registrado_por=op)
+        m_perf = svc_perf.metricas(registrado_por=op)
+        m_vtrat = svc_vtrat.metricas(registrado_por=op)
+        em_aberto = svc_tratativas.listar_em_aberto(registrado_por=op)
+        perf_andamento = svc_perf.listar_em_andamento(registrado_por=op)
         return render_template(
             "dashboard.html",
             m_trat=m_trat,
@@ -180,8 +213,9 @@ def create_app() -> Flask:
             em_aberto=em_aberto,
             perf_andamento=perf_andamento,
             agora=agora(),
-            titulo_boas_vindas=u.get("titulo_boas_vindas", "Bem-vinda, Mayara Barros!"),
-            subtitulo_boas_vindas=u.get("subtitulo_boas_vindas", ""),
+            titulo_boas_vindas=u.get("titulo_boas_vindas"),
+            subtitulo_boas_vindas=u.get("subtitulo_boas_vindas"),
+            operador_filtro=op,
         )
 
     # --- Vendas Performance ---
@@ -205,9 +239,10 @@ def create_app() -> Flask:
     @app.route("/vendas-performance")
     @login_required
     def vendas_performance_lista():
+        op = _escopo_operador()
         status = request.args.get("status") or None
-        itens = svc_perf.listar(filtro_status=status)
-        em_andamento = svc_perf.listar_em_andamento()
+        itens = svc_perf.listar(filtro_status=status, registrado_por=op)
+        em_andamento = svc_perf.listar_em_andamento(registrado_por=op)
         return render_template(
             "vendas_performance.html",
             itens=itens,
@@ -215,6 +250,9 @@ def create_app() -> Flask:
             status_opts=config.STATUS_VENDA_PERFORMANCE,
             motivos_perda=config.MOTIVOS_PERDA,
             filtro_status=status,
+            operador_filtro=op,
+            operadores=auth.listar_operadores(),
+            is_gestor=_usuario_sessao().get("is_gestor"),
         )
 
     @app.route("/vendas-performance/nova", methods=["POST"])
@@ -230,6 +268,7 @@ def create_app() -> Flask:
         if not ok:
             flash(msg, "erro")
             return redirect(url_for("vendas_performance_lista"))
+        dados["registrado_por"] = _registrado_por_atual()
         svc_perf.criar(dados)
         flash("Venda registrada no painel Performance.", "ok")
         return redirect(url_for("vendas_performance_lista"))
@@ -286,12 +325,17 @@ def create_app() -> Flask:
     @app.route("/tratativas")
     @login_required
     def tratativas_lista():
+        op = _escopo_operador()
         status = request.args.get("status") or None
         setor = request.args.get("setor") or None
-        itens = svc_tratativas.listar(filtro_status=status, filtro_setor=setor)
-        em_aberto = svc_tratativas.listar_em_aberto()
-        resolvidas = svc_tratativas.listar(apenas_resolvidas=True)
-        vendas_trat = {v["id_tratativa"]: v for v in svc_vtrat.listar()}
+        itens = svc_tratativas.listar(
+            filtro_status=status, filtro_setor=setor, registrado_por=op
+        )
+        em_aberto = svc_tratativas.listar_em_aberto(registrado_por=op)
+        resolvidas = svc_tratativas.listar(apenas_resolvidas=True, registrado_por=op)
+        vendas_trat = {
+            v["id_tratativa"]: v for v in svc_vtrat.listar(registrado_por=op)
+        }
         ids_abertos = {t["id"] for t in em_aberto}
         return render_template(
             "tratativas.html",
@@ -308,6 +352,9 @@ def create_app() -> Flask:
             status_resolvidos=config.STATUS_TRATATIVA_RESOLVIDA,
             filtro_status=status,
             filtro_setor=setor,
+            operador_filtro=op,
+            operadores=auth.listar_operadores(),
+            is_gestor=_usuario_sessao().get("is_gestor"),
         )
 
     @app.route("/tratativas/nova", methods=["POST"])
@@ -318,6 +365,7 @@ def create_app() -> Flask:
         if not ok:
             flash(msg, "erro")
             return redirect(url_for("tratativas_lista"))
+        dados["registrado_por"] = _registrado_por_atual()
         svc_tratativas.criar(dados)
         flash("Tratativa registrada com sucesso.", "ok")
         return redirect(url_for("tratativas_lista"))
@@ -359,6 +407,7 @@ def create_app() -> Flask:
                 "pedido": pedido,
                 "valor": request.form["valor"],
                 "observacao": request.form.get("observacao"),
+                "registrado_por": _registrado_por_atual(),
             },
             trat["status"],
         )
@@ -368,14 +417,14 @@ def create_app() -> Flask:
     @app.route("/exportar")
     @login_required
     def exportar():
-        m_trat = svc_tratativas.metricas()
-        m_perf = svc_perf.metricas()
-        m_vtrat = svc_vtrat.metricas()
+        painel = svc_mgestor.painel_gestor()
+        c = painel["consolidado"]
         return render_template(
             "exportar.html",
-            m_trat=m_trat,
-            m_perf=m_perf,
-            m_vtrat=m_vtrat,
+            m_trat=c["trat"],
+            m_perf=c["perf"],
+            m_vtrat=c["vtrat"],
+            por_operador=painel["por_operador"],
         )
 
     @app.route("/exportar/excel")

@@ -8,7 +8,7 @@ from pathlib import Path
 from app.config import BACKUP_DIR, DB_PATH, DATABASE_URL
 from app.utils.datetime_br import agora_iso
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 USE_POSTGRES = bool(DATABASE_URL)
 
 
@@ -151,6 +151,7 @@ def _pg_schema():
         status TEXT NOT NULL,
         codigo_item TEXT,
         numero_orcamento TEXT,
+        registrado_por TEXT,
         observacao TEXT,
         criado_em TEXT NOT NULL,
         atualizado_em TEXT NOT NULL
@@ -171,6 +172,7 @@ def _pg_schema():
         id_tratativa INTEGER REFERENCES tratativas(id),
         resultado_tratativa TEXT,
         concorrencia TEXT,
+        registrado_por TEXT,
         observacao TEXT,
         criado_em TEXT NOT NULL,
         atualizado_em TEXT NOT NULL
@@ -213,6 +215,7 @@ def _sqlite_schema():
         status TEXT NOT NULL,
         codigo_item TEXT,
         numero_orcamento TEXT,
+        registrado_por TEXT,
         observacao TEXT,
         criado_em TEXT NOT NULL,
         atualizado_em TEXT NOT NULL
@@ -233,6 +236,7 @@ def _sqlite_schema():
         id_tratativa INTEGER,
         resultado_tratativa TEXT,
         concorrencia TEXT,
+        registrado_por TEXT,
         observacao TEXT,
         criado_em TEXT NOT NULL,
         atualizado_em TEXT NOT NULL,
@@ -443,6 +447,18 @@ def _migrate_v4(conn):
             )
 
 
+def _migrate_v5(conn):
+    for tabela in ("tratativas", "vendas"):
+        if not _coluna_existe(conn, tabela, "registrado_por"):
+            conn.execute(f"ALTER TABLE {tabela} ADD COLUMN registrado_por TEXT")
+    conn.execute(
+        "UPDATE tratativas SET registrado_por = 'mayara' WHERE registrado_por IS NULL"
+    )
+    conn.execute(
+        "UPDATE vendas SET registrado_por = 'mayara' WHERE registrado_por IS NULL"
+    )
+
+
 def _aplicar_migracoes(conn, version: int) -> int:
     if version < 2:
         _migrate_v2(conn)
@@ -453,6 +469,9 @@ def _aplicar_migracoes(conn, version: int) -> int:
     if version < 4:
         _migrate_v4(conn)
         version = 4
+    if version < 5:
+        _migrate_v5(conn)
+        version = 5
     return version
 
 

@@ -558,7 +558,49 @@ body {
 }
 .tag-performance { background: rgba(34, 197, 94, 0.15); color: var(--ok); }
 .tag-tratativa-venda { color: var(--warn); font-size: 0.85rem; }
-.kpi-grid-3 { grid-template-columns: repeat(3, 1fr); }
+.kpi-grid-4 { grid-template-columns: repeat(4, 1fr); }
+.kpi-destaque { border-color: var(--primary); }
+.kpi-valor { font-size: 1.35rem; }
+.section-title { font-size: 1.1rem; margin: 1.5rem 0 1rem; font-weight: 600; }
+.section-consolidado { margin-bottom: 2rem; }
+.section-operador {
+  margin-bottom: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+.operador-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+.resumo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 1.5rem; }
+.filtro-operadores {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+.filtro-label { font-size: 0.85rem; color: var(--muted); margin-right: 0.5rem; }
+.filtro-op {
+  padding: 0.35rem 0.85rem;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  text-decoration: none;
+  color: var(--muted);
+  background: var(--surface2);
+}
+.filtro-op.active, .filtro-op:hover { color: var(--text); background: rgba(59, 130, 246, 0.2); }
+.perfil-grid-3 { grid-template-columns: repeat(3, 1fr); }
+@media (max-width: 900px) {
+  .kpi-grid-4 { grid-template-columns: 1fr 1fr; }
+  .perfil-grid-3 { grid-template-columns: 1fr; }
+}
+
 .kpi-sub { display: block; font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
 @media (max-width: 900px) {
   .kpi-grid-3 { grid-template-columns: 1fr; }

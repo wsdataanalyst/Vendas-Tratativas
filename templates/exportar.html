@@ -4,33 +4,28 @@
 <header class="page-header">
   <div>
     <h1>Exportar para Excel</h1>
-    <p class="subtitle">Performance, vendas via tratativa e tratativas — métricas separadas no resumo</p>
+    <p class="subtitle">Consolidado Mayara + Alessandro, com coluna de operador</p>
   </div>
 </header>
 
 <section class="export-grid">
   <article class="card export-card">
-    <span class="export-icon">📊</span>
     <h2>Planilha completa</h2>
     <ul class="export-list">
-      <li><strong>{{ m_perf.total }}</strong> registros Performance</li>
+      <li><strong>{{ m_perf.total }}</strong> Performance (total)</li>
       <li><strong>{{ m_vtrat.total }}</strong> vendas via tratativa</li>
       <li><strong>{{ m_trat.total }}</strong> tratativas</li>
+      <li><strong>{{ moeda(m_perf.valor_vendas_todas) }}</strong> vendas consolidadas</li>
     </ul>
-    <a href="{{ url_for('exportar_excel') }}" class="btn btn-primary btn-block export-btn">Baixar Excel (.xlsx)</a>
+    <a href="{{ url_for('exportar_excel') }}" class="btn btn-primary btn-block export-btn">Baixar Excel</a>
   </article>
   <article class="card">
-    <h2 class="card-title">Abas</h2>
-    <dl class="export-dl">
-      <dt>Resumo</dt>
-      <dd>Performance vs tratativa — contagens separadas</dd>
-      <dt>Vendas Performance</dt>
-      <dd>Follow-up direto, status e previsão</dd>
-      <dt>Vendas Tratativa</dt>
-      <dd>Convertidas com/sem impacto</dd>
-      <dt>Tratativas</dt>
-      <dd>Inclui nº orçamento e código item</dd>
-    </dl>
+    <h2 class="card-title">Por operador</h2>
+    <ul class="resumo-list">
+      {% for op_id, dados in por_operador.items() %}
+      <li><span>{{ dados.nome }}</span><strong>{{ dados.perf.realizadas }} perf · {{ dados.vtrat.total }} trat.</strong></li>
+      {% endfor %}
+    </ul>
   </article>
 </section>
 {% endblock %}

@@ -4,11 +4,18 @@ from app.utils.datetime_br import agora_iso
 from app.utils.realtime import marcar_atualizacao
 
 
-def listar_em_aberto():
+def _filtro_op(registrado_por: str | None) -> tuple[str, list]:
+    if registrado_por:
+        return " AND registrado_por = ?", [registrado_por]
+    return "", []
+
+
+def listar_em_aberto(registrado_por: str | None = None):
     placeholders = ",".join("?" * len(STATUS_EM_ABERTO))
-    sql = f"SELECT * FROM tratativas WHERE status IN ({placeholders}) ORDER BY id DESC"
+    extra, extra_p = _filtro_op(registrado_por)
+    sql = f"SELECT * FROM tratativas WHERE status IN ({placeholders}){extra} ORDER BY id DESC"
     with get_db() as conn:
-        rows = conn.execute(sql, STATUS_EM_ABERTO).fetchall()
+        rows = conn.execute(sql, [*STATUS_EM_ABERTO, *extra_p]).fetchall()
     return [dict(r) for r in rows]
 
 
@@ -16,6 +23,7 @@ def listar(
     filtro_status: str | None = None,
     filtro_setor: str | None = None,
     apenas_resolvidas: bool = False,
+    registrado_por: str | None = None,
 ):
     sql = "SELECT * FROM tratativas WHERE 1=1"
     params: list = []
@@ -31,6 +39,9 @@ def listar(
         ph = ",".join("?" * len(STATUS_TRATATIVA_RESOLVIDA))
         sql += f" AND status IN ({ph})"
         params.extend(STATUS_TRATATIVA_RESOLVIDA)
+    extra, extra_p = _filtro_op(registrado_por)
+    sql += extra
+    params.extend(extra_p)
     sql += " ORDER BY id DESC"
     with get_db() as conn:
         rows = conn.execute(sql, params).fetchall()
@@ -53,8 +64,8 @@ def criar(dados: dict) -> int:
             INSERT INTO tratativas (
                 data_registro, setor, situacao, tempo_solucao,
                 impacto_reais, status, codigo_item, numero_orcamento,
-                observacao, criado_em, atualizado_em
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                registrado_por, observacao, criado_em, atualizado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 dados.get("data_registro") or agora,
@@ -65,6 +76,7 @@ def criar(dados: dict) -> int:
                 dados["status"],
                 dados.get("codigo_item"),
                 dados.get("numero_orcamento"),
+                dados.get("registrado_por"),
                 dados.get("observacao"),
                 agora,
                 agora,
@@ -117,35 +129,42 @@ def excluir(tratativa_id: int) -> bool:
     return ok
 
 
-def metricas():
+def metricas(registrado_por: str | None = None):
+    extra, params = _filtro_op(registrado_por)
     with get_db() as conn:
-        total = conn.execute("SELECT COUNT(*) FROM tratativas").fetchone()[0]
+        total = conn.execute(
+            f"SELECT COUNT(*) FROM tratativas WHERE 1=1{extra}", params
+        ).fetchone()[0]
         em_andamento = conn.execute(
             f"""
             SELECT COUNT(*) FROM tratativas
-            WHERE status IN ({",".join("?" * len(STATUS_EM_ABERTO))})
+            WHERE status IN ({",".join("?" * len(STATUS_EM_ABERTO))}){extra}
             """,
-            STATUS_EM_ABERTO,
+            [*STATUS_EM_ABERTO, *params],
         ).fetchone()[0]
         impacto_total = conn.execute(
-            """
+            f"""
             SELECT COALESCE(SUM(impacto_reais), 0) FROM tratativas
             WHERE status IN ('Resolvido com impacto', 'Em andamento c/impacto')
-            AND impacto_reais IS NOT NULL
-            """
+            AND impacto_reais IS NOT NULL{extra}
+            """,
+            params,
         ).fetchone()[0]
         por_setor = conn.execute(
-            """
+            f"""
             SELECT setor, COUNT(*) as qtd,
                    COALESCE(SUM(impacto_reais), 0) as impacto
-            FROM tratativas GROUP BY setor ORDER BY qtd DESC
-            """
+            FROM tratativas WHERE 1=1{extra}
+            GROUP BY setor ORDER BY qtd DESC
+            """,
+            params,
         ).fetchall()
         resolvidas = conn.execute(
-            """
+            f"""
             SELECT COUNT(*) FROM tratativas
-            WHERE status IN ('Resolvido com impacto', 'Resolvido sem impacto')
-            """
+            WHERE status IN ('Resolvido com impacto', 'Resolvido sem impacto'){extra}
+            """,
+            params,
         ).fetchone()[0]
     return {
         "total": total,

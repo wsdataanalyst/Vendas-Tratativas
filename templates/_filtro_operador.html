@@ -1,0 +1,11 @@
+{% macro filtro_operador(endpoint) %}
+{% if is_gestor %}
+<nav class="filtro-operadores card">
+  <span class="filtro-label">Ver por operador:</span>
+  <a href="{{ url_for(endpoint) }}" class="filtro-op {% if not operador_filtro %}active{% endif %}">Todos</a>
+  {% for op_id, nome, _ in operadores %}
+  <a href="{{ url_for(endpoint, operador=op_id) }}" class="filtro-op {% if operador_filtro == op_id %}active{% endif %}">{{ nome }}</a>
+  {% endfor %}
+</nav>
+{% endif %}
+{% endmacro %}
